@@ -1,2 +1,4 @@
 *.json
 *.bak
+*.bat
+update_log.txt
