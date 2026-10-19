@@ -2588,23 +2588,43 @@ async function renderAgg(){
     + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map(c=>`<td class="n${c.hl ? ' hl' : ''}">${zero(c.f(s))}</td>`).join('')}</tr>`).join('')
     + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${t}</td>`).join('')}</tr></tbody></table></div>`;
 
-  // 担当者別 率・売上・個人目標
+  // 担当者別 A：接客からの進み具合（その担当が接客したお客様が、その後どこまで進んだか。担当は問わない）
+  const reachStages = ['資金計画','敷地調査','プラン','建築申込','請負契約'];
+  const byStage = {}; reachStages.forEach(st=>{ byStage[st] = shinchokuAll.filter(p=>p.stage === st); });
+  const hostList = Array.from(new Set(raijou.map(r=>r.staff).filter(Boolean))).sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
+  const tot = { v:0 }; reachStages.forEach(st=>tot[st] = 0);
+  const cellR = (n, d) => n ? `${n}<small>（${fmtPct(n, d)}）</small>` : '<span class="z">·</span>';
+  html += `<h3 class="agg-sub">担当者別 接客からの進み具合 <span>接客したお客様が、その後どこまで進んだか（進んだ先の担当は問わない）</span></h3>`;
+  if(!hostList.length) html += `<p class="bd-empty">データがありません</p>`;
+  else{
+    html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>接客担当</th><th class="n">接客</th>${reachStages.map(st=>`<th class="n${st==='請負契約'?' hl':''}">→${st}</th>`).join('')}</tr></thead><tbody>`
+      + hostList.map(s=>{
+        const vs = raijou.filter(r=>r.staff === s); tot.v += vs.length;
+        return `<tr><td>${escapeHtml(s)}</td><td class="n">${vs.length}</td>` + reachStages.map(st=>{
+          const n = visitorsContracted(vs, byStage[st]).length; tot[st] += n;
+          return `<td class="n${st==='請負契約'?' hl':''}">${cellR(n, vs.length)}</td>`;
+        }).join('') + `</tr>`;
+      }).join('')
+      + `<tr class="total"><td>合計</td><td class="n">${tot.v}</td>${reachStages.map(st=>`<td class="n${st==='請負契約'?' hl':''}">${cellR(tot[st], tot.v)}</td>`).join('')}</tr></tbody></table></div>`
+      + `<p class="agg-note">※名前で照合した参考値です。契約は来場から数か月後になることが多いため、最近の期ほど低く出ます。</p>`;
+  }
+
+  // 担当者別 B：契約担当の実績（件数・構成比・売上・個人目標）
   const staffSalesTargets = await getStaffSalesTargets();
-  let tSales = 0, tTarget = 0;
-  html += `<h3 class="agg-sub">担当者別 率・売上</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>
-    <th class="n">資金計画<br><small>アポ率</small></th><th class="n">プラン<br><small>アポ率</small></th><th class="n">申込率<br><small>申込÷プラン実行</small></th><th class="n">契約率<br><small>契約÷申込</small></th><th class="n">来場からの<br><small>成約率</small></th>
-    <th class="n">売上</th><th class="n">個人目標</th><th class="n">達成率</th></tr></thead><tbody>`
-    + staffList.concat(STAFF.filter(s=>!staffSet.has(s) && staffSalesTargets[s])).map(s=>{
-      const v = visitsBy(s), plan = cnt('プラン', s, 'executionStaff'), apply = cnt('建築申込', s), con = cnt('請負契約', s);
-      const sales = salesBy(s), target = staffSalesTargets[s];
-      tSales += sales; if(target) tTarget += Number(target);
-      const p = (a, b) => b ? fmtPct(a, b) : '<span class="z">·</span>';
-      return `<tr><td>${escapeHtml(s)}</td><td class="n">${p(cnt('資金計画', s, 'appointmentStaff'), v)}</td><td class="n">${p(cnt('プラン', s, 'appointmentStaff'), v)}</td>
-        <td class="n">${p(apply, plan)}</td><td class="n">${p(con, apply)}</td><td class="n">${p(con, v)}</td>
-        <td class="n">${sales ? yen(sales) : '<span class="z">·</span>'}</td><td class="n">${targetInputHtml('staffSales_' + s, target)}</td><td class="n">${target ? fmtPct(sales, target) : '<span class="z">·</span>'}</td></tr>`;
-    }).join('')
-    + `<tr class="total"><td>合計</td><td colspan="5"></td><td class="n">${yen(tSales)}</td><td class="n">${tTarget ? yen(tTarget) : ''}</td><td class="n">${tTarget ? fmtPct(tSales, tTarget) : ''}</td></tr></tbody></table></div>`
-    + `<p class="agg-note">※アポ率＝アポ件数÷来場時の接客件数。申込・契約・売上は各案件の担当で集計。個人目標は数字を入れると保存されます。</p>`;
+  const conStaff = Array.from(new Set(contractRecords.map(p=>p.staff).filter(Boolean)));
+  const bList = conStaff.concat(STAFF.filter(s=>!conStaff.includes(s) && staffSalesTargets[s])).sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
+  let tSales = 0, tTarget = 0, tCnt = 0;
+  html += `<h3 class="agg-sub">担当者別 契約担当の実績</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>契約担当</th>
+    <th class="n hl">契約</th><th class="n">構成比</th><th class="n">売上</th><th class="n">平均単価</th><th class="n">個人目標</th><th class="n">達成率</th></tr></thead><tbody>`
+    + (bList.length ? bList.map(s=>{
+      const con = cnt('請負契約', s), sales = salesBy(s), target = staffSalesTargets[s];
+      tSales += sales; tCnt += con; if(target) tTarget += Number(target);
+      return `<tr><td>${escapeHtml(s)}</td><td class="n hl"><b>${zero(con)}</b></td><td class="n">${con ? fmtPct(con, contractCount) : '<span class="z">·</span>'}</td>
+        <td class="n">${sales ? yen(sales) : '<span class="z">·</span>'}</td><td class="n">${con ? yen(sales / con) : '<span class="z">·</span>'}</td>
+        <td class="n">${targetInputHtml('staffSales_' + s, target)}</td><td class="n">${target ? fmtPct(sales, target) : '<span class="z">·</span>'}</td></tr>`;
+    }).join('') : `<tr><td colspan="7" style="color:var(--ink-faint);">この期間の請負契約はありません</td></tr>`)
+    + `<tr class="total"><td>合計</td><td class="n hl">${tCnt}</td><td class="n">${tCnt ? '100%' : ''}</td><td class="n">${yen(tSales)}</td><td class="n">${tCnt ? yen(tSales / tCnt) : ''}</td><td class="n">${tTarget ? yen(tTarget) : ''}</td><td class="n">${tTarget ? fmtPct(tSales, tTarget) : ''}</td></tr></tbody></table></div>`
+    + `<p class="agg-note">※契約・売上は各請負契約の担当で集計。個人目標（円）は数字を入れると保存されます。</p>`;
   html += `</div></details>`;
 
   // ── 目標達成率（ファネル） ──
