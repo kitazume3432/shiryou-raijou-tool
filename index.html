@@ -137,6 +137,7 @@
   .m-stage b{color:var(--charcoal);}
   .m-stage.contract{border-color:var(--wood); color:var(--wood-dark);}
   .stage-tag{white-space:nowrap;}
+  .list-table tr.row-now td{background:var(--wood-50) !important; font-weight:600;}
   .list-table tr.stage-row td{background:var(--card) !important; padding:7px 12px 6px 22px; border-top:1px solid var(--wood-100);}
   .list-table tr.stage-row .stage-tag{font-size:12px; font-weight:700;}
   .stage-count{margin-left:10px; font-size:12px; color:var(--ink-soft); font-variant-numeric:tabular-nums;}
@@ -2170,6 +2171,63 @@ function rankBadgesHtml(rank){
 
 
 let aggFiscal = null; // 「期ごと」で選んでいる期（null＝今期）
+
+// ===== 来場からの成約率（KPI） =====
+// 成約率＝その期間の請負契約件数 ÷ その期間の来場組数（月次・期ごとの管理でよく使う計算）
+// 参考として「その期間に来場した人のうち、のちに請負契約まで進んだ人」も名前で照合して出す
+const CONTRACT_RATE_KPI = null; // 目標の成約率（%）。決まったら数字を入れる（例：10）
+function rateText(n, d){ return d ? (Math.round(n / d * 1000) / 10) + '%' : '―'; }
+function contractsOf(list){ return list.filter(p=>p.stage === '請負契約'); }
+function nameKey(n){ return normalizeName(n).replace(/[・,、()（）]/g,'').replace(/髙/g,'高').replace(/﨑/g,'崎'); }
+// 来場者のうち、請負契約の記録（名前が一致または一方が他方を含む、契約日が来場日以降）がある人
+function visitorsContracted(visits, contractsAll){
+  const cs = contractsAll.map(c=>({ k: nameKey(c.name), d: c.date || '' }));
+  return visits.filter(v=>{
+    const k = nameKey(v.name); if(k.length < 2) return false;
+    return cs.some(c=> c.k.length >= 2 && (c.k === k || c.k.indexOf(k) >= 0 || k.indexOf(c.k) >= 0) && (!c.d || !v.date || c.d >= v.date));
+  });
+}
+function convCardHtml(visits, stages){
+  const c = contractsOf(stages).length, v = visits.length;
+  const kpi = CONTRACT_RATE_KPI ? `／目標${CONTRACT_RATE_KPI}%` : '';
+  return `<div class="metric"><div class="num">${rateText(c, v)}</div><div class="lbl">来場からの成約率</div><div class="sub">請負契約 ${c}件 ÷ 来場 ${v}組${kpi}</div></div>`;
+}
+function convSectionHtml(raijouAll, stagesAll, visits, stages){
+  const contractsAll = contractsOf(stagesAll);
+  const rowsHtml = (rows) => rows.map(r=>`<tr${r.cls?` class="${r.cls}"`:''}><td>${r.label}</td><td class="num-col">${r.v}組</td><td class="num-col">${r.c === null ? '進捗データなし' : r.c + '件'}</td><td class="num-col"><b>${r.c === null ? '―' : rateText(r.c, r.v)}</b></td>${r.cum ? `<td class="num-col">${r.cum.v}組</td><td class="num-col">${r.cum.c}件</td><td class="num-col">${rateText(r.cum.c, r.cum.v)}</td>` : ''}${r.cohort !== undefined ? `<td class="num-col">${r.cohort}組（${rateText(r.cohort, r.v)}）</td>` : ''}</tr>`).join('');
+  let html = `<details class="agg-group" open><summary class="agg-group-summary">🎯 来場からの成約率（KPI）</summary><div class="agg-group-body">`;
+  html += `<p style="font-size:12.5px; color:var(--ink-soft); margin:8px 0 12px;">成約率＝その期間の<b>請負契約件数 ÷ 来場組数</b>。「来場者のうち契約済み」は、その期間に来場した人のうち、のちに請負契約の記録がある人の数（名前で照合した参考値）です。</p>`;
+  if(currentPeriod === 'fiscal'){
+    // 期ごと：月別
+    const n = aggFiscal || currentPeriodNo();
+    const months = [];
+    if(n === 41){ for(let m=1;m<=6;m++) months.push(`2019-${String(m).padStart(2,'0')}`); }
+    else { const y = 1977 + n; for(let k=0;k<12;k++){ const m = 7 + k; months.push(m<=12 ? `${y}-${String(m).padStart(2,'0')}` : `${y+1}-${String(m-12).padStart(2,'0')}`); } }
+    const nowYm = formatDateLocal(new Date()).slice(0,7);
+    let cv = 0, cc = 0;
+    const rows = months.filter(ym => ym <= nowYm).map(ym=>{
+      const v = visits.filter(r=>ymOf(r.date)===ym).length;
+      const c = contractsOf(stages).filter(p=>ymOf(p.date)===ym).length;
+      cv += v; cc += c;
+      return { label: `${Number(ym.slice(0,4))}年${Number(ym.slice(5,7))}月`, v, c, cum: { v: cv, c: cc } };
+    });
+    html += `<div class="list-table-wrap"><table class="list-table grid-lines"><thead><tr><th>月</th><th class="num-col">来場</th><th class="num-col">請負契約</th><th class="num-col">成約率</th><th class="num-col">累計来場</th><th class="num-col">累計契約</th><th class="num-col">累計成約率</th></tr></thead><tbody>${rowsHtml(rows)}</tbody></table></div>`;
+  } else if(currentPeriod === 'all'){
+    // 全期間：期ごとの一覧
+    const nums = Array.from(new Set(raijouAll.map(r=>periodOfDate(r.date)).filter(Boolean))).sort((a,b)=>b-a);
+    const rows = nums.map(n=>{
+      const vs = raijouAll.filter(r=>periodOfDate(r.date)===n);
+      const hasStage = stagesAll.some(p=>periodOfDate(p.date)===n);
+      const c = hasStage ? contractsAll.filter(p=>periodOfDate(p.date)===n).length : null;
+      return { label: `第${n}期（${periodRangeText(n)}）${n===currentPeriodNo()?'　今期':''}`, v: vs.length, c, cohort: visitorsContracted(vs, contractsAll).length, cls: n===currentPeriodNo() ? 'row-now' : '' };
+    });
+    html += `<div class="list-table-wrap"><table class="list-table grid-lines"><thead><tr><th>期</th><th class="num-col">来場</th><th class="num-col">請負契約</th><th class="num-col">成約率</th><th class="num-col">来場者のうち契約済み</th></tr></thead><tbody>${rowsHtml(rows)}</tbody></table></div>`;
+  }
+  const cohort = visitorsContracted(visits, contractsAll).length;
+  html += `<p style="font-size:13px; margin:12px 0 0;">この期間：来場 <b>${visits.length}組</b>／請負契約 <b>${contractsOf(stages).length}件</b>／成約率 <b>${rateText(contractsOf(stages).length, visits.length)}</b>${CONTRACT_RATE_KPI ? `（目標${CONTRACT_RATE_KPI}%）` : ''}　｜　来場者のうち契約済み ${cohort}組（${rateText(cohort, visits.length)}）</p>`;
+  html += `</div></details>`;
+  return html;
+}
 function inPeriod(dateStr, period){
   if(period==='fiscal'){
     return !!dateStr && periodOfDate(dateStr) === (aggFiscal || currentPeriodNo());
@@ -2315,7 +2373,9 @@ async function renderAgg(){
   html += `<div class="cardgrid">
     <div class="metric"><div class="num">${shiryou.length}</div><div class="lbl">資料請求件数</div><div class="sub">エリア内${inCount}／エリア外${outCount}／対応中${pendingCountAgg}（エリア外・対応中は集計に含めません）</div></div>
     <div class="metric"><div class="num">${raijou.length}</div><div class="lbl">来場者数</div><div class="sub">反響から来場率 ${inCount?Math.round(raijou.length/inCount*1000)/10:0}%（エリア内のみで算出／参考値）</div></div>
+    ${convCardHtml(raijou, shinchoku)}
   </div>`;
+  html += convSectionHtml(raijouAll, shinchokuAll, raijou, shinchoku);
 
   html += `<details class="agg-group" open><summary class="agg-group-summary">📋 来場者・資料請求の基本集計</summary><div class="agg-group-body">`;
   html += chartSectionHtml('source', '資料請求：反響先', countBy(shiryou,'source'), shiryou.length);
