@@ -84,6 +84,16 @@
   }
   .btn-primary:active{background:var(--wood-900);}
   .btn-primary:hover{background:var(--wood-dark);}
+  .period-switch{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 12px;}
+  .period-switch label{font-size:13px; font-weight:600; color:var(--ink); margin:0;}
+  .period-switch select{width:auto; min-width:220px; margin:0;}
+  .period-switch .hint{font-size:12px; color:var(--ink-faint);}
+  .tag-auto{display:inline-block; margin-left:5px; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:600;
+    color:var(--wood-dark); background:var(--wood-50); border:1px solid var(--wood-200); vertical-align:1px; white-space:nowrap;}
+  .notice-box{background:var(--card); border:1px solid var(--wood-200); border-left:4px solid var(--wood); border-radius:12px;
+    padding:12px 14px; margin-bottom:14px; font-size:13px; color:var(--ink);}
+  .notice-box .notice-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .notice-box button{margin:0; padding:8px 12px; font-size:13px;}
   .btn-ghost{background:transparent; border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:13px; color:var(--ink-soft);}
   .list-table{width:100%; border-collapse:collapse; font-size:12.5px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(35,35,35,.06);}
   .list-table th{background:var(--wood-50); color:var(--wood-800); text-align:left; padding:9px 10px; font-weight:600; white-space:nowrap;}
@@ -279,6 +289,12 @@
   <div class="view" id="view-dash">
     <div class="loading" id="dash-loading">集計しています…</div>
     <div id="dash-content" class="hidden">
+      <div id="dash-notices"></div>
+      <div class="period-switch">
+        <label for="dash-period">表示する期</label>
+        <select id="dash-period"></select>
+        <span class="hint">氏名で検索したときは、全期間から探します</span>
+      </div>
       <div class="cardgrid">
         <div class="metric"><div class="num" id="m-shiryou">0</div><div class="lbl">資料請求</div><div class="sub" id="m-shiryou-sub"></div></div>
         <div class="metric"><div class="num" id="m-raijou">0</div><div class="lbl">来場者数</div><div class="sub" id="m-raijou-sub"></div></div>
@@ -1026,16 +1042,18 @@ const GH_FILE  = 'shiryou-raijou-data.json';
     return mkErr(msg);
   }
   // 保存ファイルを読み込む → { sha, data:{ key: 文字列 } }
+  // ・まず小さな情報（sha）だけ取り、前回から変わっていなければ読み直さない（通信量の節約）
+  // ・1MBを超えるとGitHubは中身を返さないので、そのときは blob（中身そのもの）を sha 指定で取り直す
   async function fetchStore(){
-    const res = await gh('/contents/' + encodeURIComponent(GH_FILE) + '?t=' + Date.now());
+    const res = await gh('/contents/' + encodeURIComponent(GH_FILE) + '?t=' + Date.now(), { headers:{ 'Accept':'application/vnd.github.object' } });
     if(res.status === 404) return { sha:null, data:{} };   // まだ1件も保存されていない
     if(!res.ok) throw await httpErr(res);
     const j = await res.json();
+    if(cache && cache.sha && cache.sha === j.sha) return cache;
     let text;
     if(j.content && j.encoding === 'base64'){ text = b64ToUtf8(j.content); }
     else{
-      // 1MBを超えるとcontentが空で返るので、生データで取り直す
-      const r2 = await gh('/contents/' + encodeURIComponent(GH_FILE) + '?t=' + Date.now(), { headers:{ 'Accept':'application/vnd.github.raw' } });
+      const r2 = await gh('/git/blobs/' + j.sha, { headers:{ 'Accept':'application/vnd.github.raw' } });
       if(!r2.ok) throw await httpErr(r2);
       text = await r2.text();
     }
@@ -1401,14 +1419,19 @@ async function renderDashboardInner(){
         : '⚠ 保存先に接続できません：' + (e.message || e);
     }
   }
-  const raijou = await getAll('raijou').catch(()=>[]);
-  const shiryou = await getAll('shiryou').catch(()=>[]);
+  const raijouAll = await getAll('raijou').catch(()=>[]);
+  const shiryouAll = await getAll('shiryou').catch(()=>[]);
+  const shinchokuAll = await getAll('shinchoku').catch(()=>[]);
+  buildDashPeriodOptions([raijouAll, shiryouAll, shinchokuAll]);
+  const raijou = raijouAll.filter(r=>inDashPeriod(r.date));
+  const shiryou = shiryouAll.filter(r=>inDashPeriod(r.date));
   const outCount = shiryou.filter(s=>s.outofarea).length;
   const pendingCount = shiryou.filter(s=>s.pending && !s.outofarea).length;
+  const pLabel = dashPeriodLabelShort();
   document.getElementById('m-shiryou').textContent = shiryou.length;
-  document.getElementById('m-shiryou-sub').textContent = 'うちエリア外 ' + outCount + '件／対応中 ' + pendingCount + '件';
+  document.getElementById('m-shiryou-sub').textContent = pLabel + '／うちエリア外 ' + outCount + '件／対応中 ' + pendingCount + '件';
   document.getElementById('m-raijou').textContent = raijou.length;
-  document.getElementById('m-raijou-sub').textContent = '登録済み全期間';
+  document.getElementById('m-raijou-sub').textContent = pLabel;
 
   const now = new Date();
   const thisMonthCount = raijou.filter(r=>{
@@ -1422,11 +1445,72 @@ async function renderDashboardInner(){
 
   document.getElementById('dash-loading').classList.add('hidden');
   document.getElementById('dash-content').classList.remove('hidden');
-  document.getElementById('header-sub').textContent = window.__refreshError || `資料請求 ${shiryou.length}件 ／ 来場 ${raijou.length}件`;
+  document.getElementById('header-sub').textContent = window.__refreshError || `${pLabel}：資料請求 ${shiryou.length}件 ／ 来場 ${raijou.length}件`;
 
+  await renderNotices();
   await renderDashStackedList('shiryou');
   await renderDashStackedList('raijou');
   await renderDashStackedList('shinchoku');
+}
+
+// ===== ホームの「表示する期」 =====
+// 期は7月〜翌年6月（第49期＝2026年7月〜2027年6月）。第41期だけは2019年1月〜6月。
+function periodOfDate(ymd){
+  if(!ymd || !/^\d{4}-\d{2}/.test(ymd)) return null;
+  const y = Number(ymd.slice(0,4)), m = Number(ymd.slice(5,7));
+  if(y === 2019 && m <= 6) return 41;
+  return m >= 7 ? y - 1977 : y - 1978;
+}
+function periodRangeText(n){
+  if(n === 41) return '2019.1〜2019.6';
+  const y = 1977 + n; return `${y}.7〜${y+1}.6`;
+}
+function currentPeriodNo(){ const d = new Date(); return periodOfDate(formatDateLocal(d)); }
+let dashPeriod = null; // null＝まだ選んでいない（今期を表示）
+function selectedDashPeriod(){ return dashPeriod === null ? String(currentPeriodNo()) : dashPeriod; }
+function inDashPeriod(ymd){
+  const sel = selectedDashPeriod();
+  if(sel === 'all') return true;
+  return String(periodOfDate(ymd)) === sel;
+}
+function dashPeriodLabelShort(){
+  const sel = selectedDashPeriod();
+  return sel === 'all' ? '全期間' : `第${sel}期` + (Number(sel) === currentPeriodNo() ? '（今期）' : '');
+}
+function buildDashPeriodOptions(lists){
+  const sel = document.getElementById('dash-period'); if(!sel) return;
+  const set = new Set([currentPeriodNo()]);
+  lists.forEach(list=>list.forEach(r=>{ const n = periodOfDate(r.date); if(n) set.add(n); }));
+  const nums = Array.from(set).filter(n=>n>=41 && n<=currentPeriodNo()+1).sort((a,b)=>b-a);
+  const cur = currentPeriodNo();
+  sel.innerHTML = nums.map(n=>`<option value="${n}">第${n}期（${periodRangeText(n)}）${n===cur?'　今期':''}</option>`).join('')
+    + '<option value="all">全期間</option>';
+  sel.value = selectedDashPeriod();
+}
+document.getElementById('dash-period').addEventListener('change', (e)=>{
+  dashPeriod = e.target.value;
+  renderDashboard();
+});
+
+// ===== 自動取込からのお知らせ（SUUMOの資料請求通知など） =====
+function autoTag(it){ return it && it.auto ? '<span class="tag-auto" title="メールから自動で取り込みました">自動</span>' : ''; }
+async function renderNotices(){
+  const box = document.getElementById('dash-notices'); if(!box) return;
+  const items = (await getAll('notice').catch(()=>[])).filter(n=>n.type==='suumo');
+  if(!items.length){ box.innerHTML = ''; return; }
+  items.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const dates = items.map(n=>escapeHtml((n.date||'').slice(5).replace('-','/'))).join('、');
+  box.innerHTML = `<div class="notice-box">
+    <b>SUUMOから資料請求の通知が ${items.length}件 届いています</b>（${dates}）<br>
+    通知メールにはお客様の情報が入っていません。SUUMOの管理画面からお客様データ（CSV）をダウンロードし、「＋資料請求を入力」→「CSVから一括インポート」で取り込んでください。
+    <div class="notice-actions"><button type="button" class="btn-ghost" id="notice-done-btn">取り込んだので消す</button></div>
+  </div>`;
+  document.getElementById('notice-done-btn').onclick = async ()=>{
+    if(!(await customConfirm(`SUUMOの通知 ${items.length}件を消します。CSVの取り込みは済みましたか？`))) return;
+    try{ for(const n of items) await deleteRecord('notice', n.id); toast('通知を消しました'); }
+    catch(e){ toast('消せませんでした：' + (e.message||e)); }
+    renderNotices();
+  };
 }
 
 async function buildRaijouTableWrap(filtered){
@@ -1501,7 +1585,7 @@ function buildShiryouTableWrap(filtered){
     const p2 = blank ? '' : (plan.planned2 ? fmtMD(plan.planned2) : '');
     const a2 = blank ? '' : (plan.planned2 ? (it.send2Actual ? done(it.send2Actual) : unsent) : '');
     tr.innerHTML = `
-      <td>${escapeHtml(it.date)}</td><td>${escapeHtml(it.name)}</td><td>${escapeHtml(it.source)}</td>
+      <td>${escapeHtml(it.date)}</td><td>${escapeHtml(it.name)}${autoTag(it)}</td><td>${escapeHtml(it.source)}</td>
       <td>${escapeHtml(it.media)}</td><td>${escapeHtml(trimAddressToTown(it.address))}</td><td>${escapeHtml(it.land)}</td><td>${escapeHtml(it.area)}</td>
       <td class="ctr">${p1}</td><td class="ctr">${a1}</td><td class="ctr">${p2}</td><td class="ctr">${a2}</td>
       <td class="ctr">${it.outofarea?'<span class="tag-sm badge-gray">エリア外</span>':(it.pending?'<span class="tag-sm badge-pending">対応中</span>':'')}</td><td></td>
@@ -1607,7 +1691,8 @@ async function renderDashStackedList(kind){
   content.innerHTML = '<div class="loading">読み込み中…</div>';
   const items = await getAll(kind);
   const q = document.getElementById(searchId).value.trim();
-  const filtered = q ? items.filter(it=>(it.name||'').includes(q)) : items;
+  // 検索しているときは全期間から、していないときは選んだ期だけを表示
+  const filtered = q ? items.filter(it=>(it.name||'').includes(q)) : items.filter(it=>inDashPeriod(it.date));
   filtered.sort((a,b)=> (a.date||'').localeCompare(b.date||'')); // 日付の古い順（昇順）
   content.innerHTML = '';
   if(filtered.length===0){
@@ -3616,8 +3701,8 @@ async function renderReservationList(){
   items.forEach(it=>{
     const div = document.createElement('div'); div.className = 'listitem';
     div.innerHTML = `
-      <div class="top"><span class="name">${it.name||''}</span><span class="date">来場予定：${it.date||'未定'}</span></div>
-      <div class="meta">受付日:${it.bookedDate||'不明'} ／ ${it.place||''} ／ 担当:${it.staff||''}${it.trigger?' ／ '+it.trigger+(it.triggerOther?'('+it.triggerOther+')':''):''}${it.land?' ／ 土地:'+it.land:''}${it.hopeArea?'（希望:'+it.hopeArea+'）':''}${it.tel?' ／ 電話:'+it.tel:''}${it.address?'<br>'+it.address:''}${it.note?'<br>'+it.note:''}</div>
+      <div class="top"><span class="name">${escapeHtml(it.name||'')}${autoTag(it)}</span><span class="date">来場予定：${escapeHtml(it.date||'未定')}</span></div>
+      <div class="meta">受付日:${escapeHtml(it.bookedDate||'不明')} ／ ${escapeHtml(it.place||'')} ／ 担当:${escapeHtml(it.staff||'')}${it.trigger?' ／ '+escapeHtml(it.trigger)+(it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''):''}${it.land?' ／ 土地:'+escapeHtml(it.land):''}${it.hopeArea?'（希望:'+escapeHtml(it.hopeArea)+'）':''}${it.tel?' ／ 電話:'+escapeHtml(it.tel):''}${it.address?'<br>'+escapeHtml(it.address):''}${it.note?'<br>'+escapeHtml(it.note):''}</div>
     `;
     const doneBtn = document.createElement('button'); doneBtn.className='btn-ghost'; doneBtn.style.marginRight='6px'; doneBtn.textContent='来場入力へ';
     doneBtn.onclick = ()=>{
@@ -3653,7 +3738,7 @@ async function printReservationList(){
     <tr>
       <td>${escapeHtml(it.date)||'未定'}</td>
       <td>${escapeHtml(it.bookedDate)}</td>
-      <td>${escapeHtml(it.name)}</td>
+      <td>${escapeHtml(it.name)}${autoTag(it)}</td>
       <td>${escapeHtml(it.staff)}</td>
       <td>${escapeHtml(it.place)}</td>
       <td>${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
