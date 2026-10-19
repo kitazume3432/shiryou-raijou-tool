@@ -172,6 +172,29 @@
   .agg-group-summary::after{content:'▾'; color:var(--wood-400); font-size:13px; transition:transform .15s;}
   .agg-group:not([open]) .agg-group-summary::after{transform:rotate(-90deg);}
   .agg-group-body{padding:2px 16px 14px;}
+  .cmp-wrap{border:1px solid var(--line); border-radius:12px; background:#fff; max-height:calc(100vh - 220px); overflow:auto;}
+  .cmp-table{border-collapse:separate; border-spacing:0; font-size:12.5px; font-variant-numeric:tabular-nums; min-width:100%;}
+  .cmp-table th{position:sticky; top:0; z-index:2; background:var(--wood-50); color:var(--wood-800); font-weight:700; font-size:12px; padding:7px 10px; border-bottom:1px solid var(--wood-200); white-space:nowrap; text-align:right;}
+  .cmp-table thead tr:nth-child(2) th{top:31px;}
+  .cmp-table th small{display:block; font-weight:400; font-size:10px; color:var(--ink-faint);}
+  .cmp-table th.lbl, .cmp-table td.lbl{position:sticky; left:0; z-index:1; text-align:left; background:#fff; min-width:11em; border-right:1px solid var(--wood-100);}
+  .cmp-table th.lbl{z-index:3; background:var(--wood-50);}
+  .cmp-table th.grp{text-align:center; border-left:1px solid var(--wood-200);}
+  .cmp-table td{padding:4px 10px; border-bottom:1px solid var(--wood-50); text-align:right; white-space:nowrap; vertical-align:top;}
+  .cmp-table .tot{background:var(--wood-50); font-weight:700; border-left:1px solid var(--wood-100);}
+  .cmp-table .now{background:rgba(173,138,92,.07);}
+  .cmp-table .qstart{border-left:1px solid var(--wood-200);}
+  .cmp-table tr.sec td{background:var(--charcoal); color:#fff; font-weight:700; font-size:12px; letter-spacing:.08em; text-align:left; padding:6px 10px; position:sticky; left:0;}
+  .cmp-table tr.subsec td{background:var(--wood-50); color:var(--wood-800); font-weight:700; font-size:11.5px; text-align:left; padding:5px 10px 4px;}
+  .cmp-table tr.ind td.lbl{padding-left:22px; color:var(--ink);}
+  .cmp-table tr.sum td{font-weight:700; border-top:1px solid var(--wood-200);}
+  .cmp-table tr.sum td.lbl{color:var(--wood-800);}
+  .cmp-table tr.strong td{font-weight:700;}
+  .cmp-table tr:hover td{background:rgba(173,138,92,.06);}
+  .cmp-table tr:hover td.lbl{background:#fbf8f2;}
+  .yoy{display:block; font-size:10px; font-weight:400; color:var(--ink-faint); line-height:1.2;}
+  .yoy.up{color:var(--ok);}
+  .yoy.down{color:var(--danger);}
   .agg-sub{display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:700; color:var(--charcoal); margin:14px 0 8px; letter-spacing:.03em;}
   .agg-sub span{font-size:12px; font-weight:400; color:var(--ink-soft);}
   .agg-note{font-size:11.5px; color:var(--ink-faint); margin:6px 0 0;}
@@ -985,22 +1008,13 @@
 
   <!-- 期比較 -->
   <div class="view hidden" id="view-periods">
-    <div class="row2" style="margin-bottom:12px;">
-      <div>
-        <label>比較する期A</label>
-        <select id="period-select-a"></select>
-      </div>
-      <div>
-        <label>比較する期B</label>
-        <select id="period-select-b"></select>
-      </div>
-    </div>
     <div class="tabbar">
-      <button id="ptab-summary" class="active">サマリー</button>
-      <button id="ptab-quarter">四半期</button>
-      <button id="ptab-breakdown">内訳</button>
-      <button id="ptab-goal">目標対比</button>
-      <button id="ptab-staff">担当者詳細</button>
+      <button id="cmp-mode-period" class="active">期ごと</button>
+      <button id="cmp-mode-quarter">3か月ごと</button>
+    </div>
+    <div class="period-switch" style="margin:12px 0 10px;">
+      <label for="cmp-from">表示する期</label>
+      <select id="cmp-from"></select><span>〜</span><select id="cmp-to"></select>
     </div>
     <div id="periods-content"></div>
   </div>
@@ -1829,6 +1843,154 @@ document.getElementById('dash-period').addEventListener('change', (e)=>{
   dashPeriod = e.target.value;
   renderDashboard();
 });
+
+
+// ===== 期比較（Excelの「データ（期集計）」「データ（3か月集計）」と同じ形を、データから自動で作る） =====
+let cmpMode = 'period';   // 'period'＝期ごと／'quarter'＝3か月ごと
+let cmpFrom = null, cmpTo = null;
+const QUARTERS = [ {label:'7〜9月', m:[7,8,9]}, {label:'10〜12月', m:[10,11,12]}, {label:'1〜3月', m:[1,2,3]}, {label:'4〜6月', m:[4,5,6]} ];
+function cmpColumns(){
+  const cols = [];
+  for(let n = cmpFrom; n <= cmpTo; n++){
+    if(cmpMode === 'period') cols.push({ key:'p'+n, label:`第${n}期`, sub: periodRangeText(n), test: d => periodOfDate(d) === n, period:n });
+    else QUARTERS.forEach((q, qi)=>{
+      if(n === 41 && qi < 2) return; // 第41期は1〜6月のみ
+      cols.push({ key:`p${n}q${qi}`, label:q.label, group:`第${n}期`, test: d => periodOfDate(d) === n && q.m.includes(Number((d||'').slice(5,7))), period:n, qi });
+    });
+  }
+  return cols;
+}
+async function renderPeriods(){
+  const content = document.getElementById('periods-content');
+  content.innerHTML = '<div class="loading">集計しています…</div>';
+  const raijouAll = await getAll('raijou'), shiryouAll = await getAll('shiryou'), stagesAll = await getAll('shinchoku');
+  // 期の選択肢
+  const cur = currentPeriodNo();
+  const nums = Array.from(new Set([...raijouAll, ...shiryouAll, ...stagesAll].map(r=>periodOfDate(r.date)).filter(n=>n && n >= 41 && n <= cur))).sort((a,b)=>a-b);
+  if(!nums.length){ content.innerHTML = '<p class="bd-empty">データがありません</p>'; return; }
+  if(cmpFrom === null || !nums.includes(cmpFrom)) cmpFrom = cmpMode === 'period' ? Math.max(nums[0], 42) : Math.max(nums[0], cur - 1);
+  if(cmpTo === null || !nums.includes(cmpTo)) cmpTo = cur;
+  if(cmpFrom > cmpTo) [cmpFrom, cmpTo] = [cmpTo, cmpFrom];
+  const opt = (sel)=> nums.map(n=>`<option value="${n}"${n===sel?' selected':''}>第${n}期（${periodRangeText(n)}）${n===cur?'　今期':''}</option>`).join('');
+  document.getElementById('cmp-from').innerHTML = opt(cmpFrom);
+  document.getElementById('cmp-to').innerHTML = opt(cmpTo);
+
+  const cols = cmpColumns();
+  const inCol = (list, c) => list.filter(r=>c.test(r.date));
+  const data = cols.map(c=>({
+    s: inCol(shiryouAll, c), r: inCol(raijouAll, c), p: inCol(stagesAll, c)
+  }));
+  const allS = [].concat(...data.map(d=>d.s)), allR = [].concat(...data.map(d=>d.r)), allP = [].concat(...data.map(d=>d.p));
+  // 今期は途中なので、前の期の「同じ時期まで」と比べる（例：今期7/1〜10/19 と 前期7/1〜前年10/19）
+  const todayStr = formatDateLocal(new Date());
+  const lastYearToday = String(Number(todayStr.slice(0,4)) - 1) + todayStr.slice(4);
+  const prevSameTest = d => periodOfDate(d) === cur - 1 && d <= lastYearToday;
+  const prevSame = { s: shiryouAll.filter(r=>prevSameTest(r.date)), r: raijouAll.filter(r=>prevSameTest(r.date)), p: stagesAll.filter(r=>prevSameTest(r.date)) };
+  const prevSameHasStage = prevSame.p.length > 0;
+
+  const rows = []; // {type:'sec'|'row'|'rate'|'yen', label, vals:[], total}
+  const sec = (label)=> rows.push({ type:'sec', label });
+  const countRow = (label, f, opt) => rows.push(Object.assign({ type:'row', label, vals: data.map(f), total: f({ s:allS, r:allR, p:allP }), prevSame: f(prevSame) }, opt||{}));
+  const rateRow = (label, num, den, opt) => rows.push(Object.assign({ type:'rate', label, vals: data.map(d=>[num(d), den(d)]), total: [num({s:allS,r:allR,p:allP}), den({s:allS,r:allR,p:allP})], prevSame: [num(prevSame), den(prevSame)] }, opt||{}));
+  const hasStage = data.map(d=>d.p.length > 0); // 進捗の記録がない期（41・42期など）は「データなし」
+  // 内訳（項目は選んだ範囲で多い順。件数0の項目は出さない）
+  const breakdown = (title, listKey, field, transform) => {
+    const get = r => { const v = transform ? transform(r) : r[field]; return v || '未入力'; };
+    const totals = {};
+    ({s:allS, r:allR, p:allP})[listKey].forEach(r=>{ const v = get(r); totals[v] = (totals[v]||0) + 1; });
+    const keys = Object.keys(totals).sort((a,b)=> (a==='未入力') - (b==='未入力') || totals[b] - totals[a]);
+    rows.push({ type:'sub', label:title });
+    keys.forEach(k=> countRow(k, d=>d[listKey].filter(r=>get(r)===k).length, { indent:true }));
+    countRow('合計', d=>d[listKey].length, { indent:true, sum:true });
+  };
+  const stageN = (d, st) => d.p.filter(p=>p.stage===st).length;
+  const isRef = r => r.trigger === '紹介';
+
+  sec('総数');
+  countRow('反響総数（資料請求＋来場）', d=>d.s.length + d.r.length, { strong:true });
+  countRow('資料請求', d=>d.s.length);
+  countRow('新規来場', d=>d.r.length);
+  sec('資料請求');
+  breakdown('反響先', 's', 'source');
+  breakdown('知った媒体', 's', 'media');
+  breakdown('土地', 's', 'land');
+  sec('新規来場者');
+  breakdown('来場場所', 'r', 'place');
+  breakdown('きっかけ', 'r', 'trigger');
+  breakdown('土地', 'r', 'land');
+  breakdown('ランク（A〜E）', 'r', null, r=>((r.rank||'').split('-')[0]) || '不明');
+  breakdown('ランク（1〜5）', 'r', null, r=>((r.rank||'').split('-')[1]) || '不明');
+  rows.push({ type:'sub', label:'興味を持った点' });
+  INTERESTS.map(i=>[i, allR.filter(r=>(r.interests||[]).includes(i)).length]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1])
+    .forEach(([i])=> countRow(i, d=>d.r.filter(r=>(r.interests||[]).includes(i)).length, { indent:true }));
+  sec('進捗');
+  STAGES.forEach(st=> countRow(st, d=>stageN(d, st), Object.assign({ needStage:true }, st==='請負契約' ? { strong:true } : {})));
+  const yenOf = d => d.p.filter(p=>p.stage==='請負契約').reduce((s2,p)=>s2+parseAmount(p.amount),0);
+  rows.push({ type:'yen', needStage:true, label:'契約金額', vals: data.map(yenOf), total: yenOf({ p: allP }), prevSame: yenOf(prevSame) });
+  sec('移行率');
+  rateRow('反響から来場', d=>d.r.length, d=>d.s.length + d.r.length);
+  const NS = { needStage:true };
+  rateRow('来場から資金計画', d=>stageN(d,'資金計画'), d=>d.r.length, NS);
+  rateRow('資金計画から敷地調査', d=>stageN(d,'敷地調査'), d=>stageN(d,'資金計画'), NS);
+  rateRow('敷地調査からプラン', d=>stageN(d,'プラン'), d=>stageN(d,'敷地調査'), NS);
+  rateRow('プランから契約', d=>stageN(d,'請負契約'), d=>stageN(d,'プラン'), NS);
+  rateRow('来場からの成約率（KPI）', d=>stageN(d,'請負契約'), d=>d.r.length, { needStage:true, strong:true });
+  sec('紹介・資料請求');
+  countRow('紹介での来場', d=>d.r.filter(isRef).length);
+  countRow('契約の紹介数', d=>d.p.filter(p=>p.stage==='請負契約' && p.referral).length, NS);
+  rateRow('来場者数からの紹介率', d=>d.r.filter(isRef).length, d=>d.r.length);
+  rateRow('紹介者からの成約率', d=>d.p.filter(p=>p.stage==='請負契約' && p.referral).length, d=>d.r.filter(isRef).length, NS);
+  rateRow('契約のうち紹介率', d=>d.p.filter(p=>p.stage==='請負契約' && p.referral).length, d=>stageN(d,'請負契約'), NS);
+  countRow('資料請求後の来場数', d=>d.r.filter(r=>r.linkedShiryouId).length);
+  rateRow('新規来場者に対する資料請求率', d=>d.r.filter(r=>r.linkedShiryouId).length, d=>d.r.length);
+
+  // 表を組み立てる
+  const isP = cmpMode === 'period';
+  const rate = (a, b) => b ? Math.round(a / b * 1000) / 10 : null;
+  const yoy = (i, row) => { // 期ごと：前の期と比べる（率はポイント差）。今期は前期の同じ時期までと比べる
+    if(!isP) return '';
+    const isCur = cols[i].period === cur;
+    if(i === 0 && !isCur) return '';
+    if(isCur && row.needStage && !prevSameHasStage) return '';
+    const prevV = isCur ? row.prevSame : row.vals[i-1];
+    if(prevV === undefined) return '';
+    if(row.type === 'rate'){
+      const a = rate(...row.vals[i]), b = rate(...prevV);
+      if(a === null || b === null) return '';
+      const d = Math.round((a - b) * 10) / 10;
+      return `<span class="yoy ${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d}pt</span>`;
+    }
+    const a = row.vals[i], b = prevV;
+    if(!b) return a ? '<span class="yoy">新規</span>' : '';
+    const r = Math.round(a / b * 100);
+    return `<span class="yoy ${r>100?'up':r<100?'down':''}">${r}%</span>`;
+  };
+  const fmt = (row, v) => {
+    if(row.type === 'rate'){ const r = rate(v[0], v[1]); return r === null ? '<span class="z">―</span>' : r + '%'; }
+    if(row.type === 'yen') return v ? '¥' + Math.round(v / 10000).toLocaleString('ja-JP') + '万' : '<span class="z">·</span>';
+    return v ? v : '<span class="z">·</span>';
+  };
+  let head = '';
+  if(isP){
+    head = `<tr><th class="lbl">項目</th>${cols.map(c=>`<th class="n${c.period===cur?' now':''}">${c.label}<small>${c.period===cur ? '今期・前年同期比' : c.sub}</small></th>`).join('')}<th class="n tot">合計</th></tr>`;
+  }else{
+    const groups = []; cols.forEach(c=>{ const g = groups[groups.length-1]; if(g && g.label===c.group) g.n++; else groups.push({ label:c.group, n:1, period:c.period }); });
+    head = `<tr><th class="lbl" rowspan="2">項目</th>${groups.map(g=>`<th class="n grp${g.period===cur?' now':''}" colspan="${g.n}">${g.label}</th>`).join('')}<th class="n tot" rowspan="2">合計</th></tr>`
+      + `<tr>${cols.map(c=>`<th class="n q${c.qi===0?' qstart':''}">${c.label}</th>`).join('')}</tr>`;
+  }
+  const body = rows.map(row=>{
+    if(row.type === 'sec') return `<tr class="sec"><td colspan="${cols.length + 2}">${row.label}</td></tr>`;
+    if(row.type === 'sub') return `<tr class="subsec"><td colspan="${cols.length + 2}">${row.label}</td></tr>`;
+    const cls = [row.indent?'ind':'', row.sum?'sum':'', row.strong?'strong':''].filter(Boolean).join(' ');
+    return `<tr class="${cls}"><td class="lbl">${escapeHtml(row.label)}</td>${row.vals.map((v,i)=>`<td class="n${!isP && cols[i].qi===0?' qstart':''}${cols[i].period===cur?' now':''}">${row.needStage && !hasStage[i] ? '<span class="z" title="進捗のデータがありません">―</span>' : fmt(row, v) + ((row.needStage && i>0 && !hasStage[i-1]) ? '' : yoy(i, row))}</td>`).join('')}<td class="n tot">${fmt(row, row.total)}</td></tr>`;
+  }).join('');
+  content.innerHTML = `<div class="list-table-wrap cmp-wrap"><table class="cmp-table${isP?' by-period':' by-quarter'}"><thead>${head}</thead><tbody>${body}</tbody></table></div>`
+    + `<p class="agg-note">※「―」は進捗のデータがない期間です（Excelの41・42期には進捗の記録がありません）。期・3か月は日付で分けています（Excelの各期シートの行とは、日付の入力ミスなどで少し差が出ることがあります）。${isP ? '値の下の小さな数字は前の期との比較（件数は前期比、率はポイント差）です。今期は途中のため、前期の同じ時期（' + lastYearToday.slice(5).replace('-','/') + 'まで）と比べています。' : ''}契約金額は万円単位です。</p>`;
+}
+document.getElementById('cmp-mode-period').addEventListener('click', ()=>{ cmpMode='period'; cmpFrom=null; document.getElementById('cmp-mode-period').classList.add('active'); document.getElementById('cmp-mode-quarter').classList.remove('active'); renderPeriods(); });
+document.getElementById('cmp-mode-quarter').addEventListener('click', ()=>{ cmpMode='quarter'; cmpFrom=null; document.getElementById('cmp-mode-quarter').classList.add('active'); document.getElementById('cmp-mode-period').classList.remove('active'); renderPeriods(); });
+document.getElementById('cmp-from').addEventListener('change', e=>{ cmpFrom = Number(e.target.value); renderPeriods(); });
+document.getElementById('cmp-to').addEventListener('change', e=>{ cmpTo = Number(e.target.value); renderPeriods(); });
 
 // ===== 自動取込からのお知らせ（SUUMOの資料請求通知など） =====
 function autoTag(it){ return it && it.auto ? '<span class="tag-auto" title="メールから自動で取り込みました">自動</span>' : ''; }
@@ -3045,7 +3207,7 @@ function breakdownCompareHtml(b47, b48, title, labelA, labelB){
   return html;
 }
 
-function renderPeriods(){
+function renderPeriodsOld(){
   const keyA = document.getElementById('period-select-a').value;
   const keyB = document.getElementById('period-select-b').value;
   const content = document.getElementById('periods-content');
@@ -3207,15 +3369,7 @@ function renderPeriods(){
     content.innerHTML = html;
   }
 }
-['ptab-summary','ptab-quarter','ptab-breakdown','ptab-goal','ptab-staff'].forEach(id=>{
-  document.getElementById(id).addEventListener('click', ()=>{
-    currentPeriodTab = id.replace('ptab-','');
-    ['ptab-summary','ptab-quarter','ptab-breakdown','ptab-goal','ptab-staff'].forEach(x=>document.getElementById(x).classList.toggle('active', x===id));
-    renderPeriods();
-  });
-});
-document.getElementById('period-select-a').addEventListener('change', renderPeriods);
-document.getElementById('period-select-b').addEventListener('change', renderPeriods);
+// （旧・期比較のボタン処理は、データから自動集計する新しい期比較に置き換え）
 
 function switchView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));
