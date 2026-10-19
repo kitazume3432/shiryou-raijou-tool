@@ -137,15 +137,33 @@
   }
   .toast.show{opacity:1;}
 
+  /* ナビ：ヘッダーと一体のチャコール帯に、ウッドの板がすべって選択中を示すタブ */
+  .top-bar{background:var(--charcoal);}
   nav{
-    background:var(--cream-dark); border-bottom:1px solid var(--line); display:flex; z-index:20; max-width:520px; margin:0 auto;
+    position:relative; display:flex; gap:4px; z-index:20;
+    margin:0 14px; padding:4px; transform:translateY(-2px);
+    background:rgba(247,243,234,.06); border:1px solid rgba(247,243,234,.09); border-radius:12px;
   }
+  .top-bar nav{margin-bottom:12px;}
   nav button{
-    flex:1; background:none; border:none; border-bottom:3px solid transparent; padding:9px 0 7px; display:flex; flex-direction:column;
-    align-items:center; gap:2px; color:var(--ink-soft); font-size:9.5px; transition:background .15s, color .15s;
+    position:relative; z-index:1; flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:7px 0 6px; background:none; border:none; border-radius:9px;
+    color:rgba(247,243,234,.6); font-size:10.5px; font-weight:600; letter-spacing:.06em;
+    transition:color .2s;
   }
-  nav button.active{color:var(--charcoal); background:var(--cream); border-bottom-color:var(--wood); font-weight:600;}
-  nav svg{width:18px; height:18px;}
+  nav button:hover{color:var(--cream);}
+  nav button.active{color:#fff;}
+  nav button:focus-visible{outline:2px solid var(--wood-light); outline-offset:1px;}
+  nav svg{width:18px; height:18px; transition:transform .25s;}
+  nav button.active svg{transform:translateY(-1px);}
+  .nav-glider{
+    position:absolute; z-index:0; top:4px; bottom:4px; left:0; width:0; border-radius:9px;
+    background:var(--wood);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.28), inset 0 -1px 0 rgba(0,0,0,.12), 0 3px 10px rgba(0,0,0,.35);
+    transition:transform .3s cubic-bezier(.3,.7,.2,1), width .3s cubic-bezier(.3,.7,.2,1);
+  }
+  .nav-glider.no-anim{transition:none;}
+  @media (prefers-reduced-motion: reduce){ .nav-glider, nav svg{transition:none;} }
 
   .listitem{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px;}
   .listitem .top{display:flex; justify-content:space-between; align-items:baseline;}
@@ -187,12 +205,11 @@
   /* ===== デスクトップ（PC）向けレイアウト ===== */
   @media (min-width: 900px){
     #app{max-width:min(1500px, calc(100vw - 32px)); padding-bottom:40px;}
-    header{position:static; border-radius:0 0 16px 16px;}
+    header{position:static; border-radius:0;}
+    .top-bar{border-radius:0 0 16px 16px;}
+    .top-bar nav{margin:0 20px 16px;}
     .header-stats{display:flex;}
-    nav{
-      max-width:none; border-radius:0;
-    }
-    nav button{flex-direction:row; gap:7px; font-size:13px; padding:14px 0;}
+    nav button{flex-direction:row; justify-content:center; gap:8px; font-size:13.5px; padding:10px 0;}
     nav svg{width:18px; height:18px;}
     .view{padding:0 20px;}
     .cardgrid{grid-template-columns:repeat(4,1fr);}
@@ -2823,6 +2840,7 @@ function switchView(name){
   document.getElementById('view-'+name).classList.remove('hidden');
   const navName = ['visit','shiryou','stage'].includes(name) ? 'dash' : name;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===navName));
+  moveNavGlider();
   if(name==='dash') renderDashboard();
   if(name==='agg') renderAgg();
   if(name==='stage'){ editingStageId = null; document.getElementById('form-stage-submit-btn').textContent = '進捗を保存'; populateNameSuggestions(); renderStageRecent(); document.getElementById('st-date').value = formatDateLocal(new Date()); updateStageFieldVisibility(); }
@@ -2834,6 +2852,21 @@ function switchView(name){
 document.querySelectorAll('nav button').forEach(b=>{
   if(b.dataset.view) b.addEventListener('click', ()=> switchView(b.dataset.view));
 });
+// 選択中のタブの下に、ウッドの板をすべらせる
+const navGlider = document.createElement('span');
+navGlider.className = 'nav-glider no-anim';
+navGlider.setAttribute('aria-hidden', 'true');
+document.querySelector('nav').prepend(navGlider);
+function moveNavGlider(){
+  const act = document.querySelector('nav button.active');
+  if(!act){ navGlider.style.width = '0'; return; }
+  navGlider.style.width = act.offsetWidth + 'px';
+  navGlider.style.transform = `translateX(${act.offsetLeft}px)`;
+}
+moveNavGlider();
+requestAnimationFrame(()=> requestAnimationFrame(()=> navGlider.classList.remove('no-anim')));
+window.addEventListener('resize', ()=>{ navGlider.classList.add('no-anim'); moveNavGlider(); requestAnimationFrame(()=> navGlider.classList.remove('no-anim')); });
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(moveNavGlider);
 
 // ===== 保存済みデータの編集 =====
 async function editRaijou(id){
