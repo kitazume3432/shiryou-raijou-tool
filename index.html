@@ -690,6 +690,15 @@
     <div class="listitem">
       <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">SUUMOなどから書き出したCSV(氏名・電話番号・メールアドレス・住所・依頼番号・反響日などを含むもの)を選ぶと、自動で読み込みます。</p>
       <input type="file" id="csv-file" accept=".csv,.txt">
+      <div style="margin-top:10px;">
+        <label for="csv-source">このCSVの反響先</label>
+        <select id="csv-source">
+          <option value="auto">自動で判定（SUUMOのCSVならｽｰﾓ注文住宅）</option>
+          <option>ｽｰﾓ注文住宅</option><option>ﾘｸﾙｰﾄまとめて</option><option>すみかまとめて</option><option>その他</option>
+          <option value="">設定しない</option>
+        </select>
+        <p style="font-size:12px; color:var(--ink-faint); margin:4px 0 0;">反響先が「ｽｰﾓ注文住宅」のときは、知った媒体を「ｽｰﾓﾈｯﾄ」にします。</p>
+      </div>
       <button type="button" id="csv-import-btn" class="btn-primary" style="margin-top:10px;">CSVを読み込む</button>
       <div id="csv-result" style="font-size:13px; margin-top:10px; color:var(--ink-soft);"></div>
       <div id="csv-dup-review"></div>
@@ -966,6 +975,25 @@
         <div id="setup-link-result" style="font-size:13px; margin-top:10px; color:var(--ink-soft); word-break:break-all;"></div>
       </div>
     </div>
+    <div class="section-title">SUUMOの反響をそろえる</div>
+    <div class="listitem">
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;"><b>① KASIKA経由で入ったSUUMOのお客様</b>：KASIKAから自動で取り込んだ資料請求のうち、反響先が「自社HP」になっているものを一覧にします。SUUMOから来たお客様にチェックを入れて変更すると、反響先「ｽｰﾓ注文住宅」・知った媒体「ｽｰﾓﾈｯﾄ」に直します。</p>
+      <button type="button" id="fix-kasika-list-btn" class="btn-ghost">対象を一覧にする</button>
+      <div id="fix-kasika-list" style="margin-top:10px;"></div>
+      <hr style="border:none; border-top:1px solid var(--line); margin:16px 0;">
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;"><b>② 知った媒体をｽｰﾓﾈｯﾄにそろえる</b>：反響先が「ｽｰﾓ注文住宅」なのに、知った媒体が「ｽｰﾓﾈｯﾄ」以外になっている資料請求を、「ｽｰﾓﾈｯﾄ」に直します。</p>
+      <div class="period-switch" style="margin:0 0 8px;">
+        <label for="fix-media-scope">対象</label>
+        <select id="fix-media-scope">
+          <option value="current">今期だけ</option>
+          <option value="44">第44期以降</option>
+          <option value="all">全期間（Excelの集計と合わなくなる期があります）</option>
+        </select>
+      </div>
+      <button type="button" id="fix-media-btn" class="btn-ghost">件数を確認して直す</button>
+      <div id="fix-media-result" style="font-size:13px; margin-top:10px; color:var(--ink-soft);"></div>
+    </div>
+
     <div class="section-title">データのバックアップ（書き出し）</div>
     <div class="listitem">
       <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">
@@ -1530,6 +1558,52 @@ async function renderDashboardInner(){
   await renderDashStackedList('raijou');
   await renderDashStackedList('shinchoku');
 }
+
+// 資料請求の入力：反響先で「ｽｰﾓ注文住宅」を選んだら、知った媒体を「ｽｰﾓﾈｯﾄ」にする（あとから変更も可）
+document.getElementById('s-source').addEventListener('change', (e)=>{
+  const m = document.getElementById('s-media');
+  const v = mediaForSource(e.target.value);
+  if(v && m.value !== v){ m.value = v; m.dispatchEvent(new Event('change')); }
+});
+
+// ===== SUUMOの反響をそろえる（データ管理） =====
+async function saveShiryouBatch(list){
+  const entries = {};
+  list.forEach(r=>{ entries['shiryou:' + r.id] = JSON.stringify(r); });
+  if(window.storage && window.storage.batchSet) await window.storage.batchSet(entries);
+  else for(const r of list) await updateRecord('shiryou', r.id, r);
+}
+document.getElementById('fix-kasika-list-btn').addEventListener('click', async ()=>{
+  const box = document.getElementById('fix-kasika-list');
+  box.innerHTML = '読み込み中…';
+  const list = (await getAll('shiryou')).filter(r=>r.auto && /^KASIKA/.test(r.auto.via||'') && r.source !== 'ｽｰﾓ注文住宅')
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!list.length){ box.innerHTML = '対象はありません（KASIKAから自動で入った資料請求は、すべてｽｰﾓ注文住宅になっているか、まだありません）。'; return; }
+  box.innerHTML = `<div class="list-table-wrap"><table class="list-table grid-lines"><thead><tr><th></th><th>日付</th><th>氏名</th><th>反響先</th><th>知った媒体</th><th>取込元</th></tr></thead><tbody>`
+    + list.map(r=>`<tr><td class="ctr"><input type="checkbox" class="fix-kasika-chk" value="${escapeHtml(r.id)}" style="width:18px;height:18px;"></td><td>${escapeHtml(r.date||'')}</td><td>${escapeHtml(r.name||'')}</td><td>${escapeHtml(r.source||'')}</td><td>${escapeHtml(r.media||'')}</td><td class="wrap">${escapeHtml((r.note||'').match(/【自動取込:[^】]*】/)?.[0] || r.auto.via)}</td></tr>`).join('')
+    + `</tbody></table></div><button type="button" id="fix-kasika-apply" class="btn-primary">チェックしたお客様をSUUMO（ｽｰﾓ注文住宅／ｽｰﾓﾈｯﾄ）に変更</button><div id="fix-kasika-result" style="font-size:13px; margin-top:8px; color:var(--ink-soft);"></div>`;
+  document.getElementById('fix-kasika-apply').onclick = async ()=>{
+    const ids = [...document.querySelectorAll('.fix-kasika-chk:checked')].map(c=>c.value);
+    if(!ids.length){ document.getElementById('fix-kasika-result').textContent = 'チェックが入っていません。'; return; }
+    if(!(await customConfirm(`${ids.length}件を、反響先「ｽｰﾓ注文住宅」・知った媒体「ｽｰﾓﾈｯﾄ」に変更します。よろしいですか？`))) return;
+    const targets = list.filter(r=>ids.includes(r.id)).map(r=>Object.assign({}, r, { source:'ｽｰﾓ注文住宅', media:'ｽｰﾓﾈｯﾄ', mediaOther:'' }));
+    try{ await saveShiryouBatch(targets); toast(`${targets.length}件を変更しました`); document.getElementById('fix-kasika-list-btn').click(); }
+    catch(e){ document.getElementById('fix-kasika-result').textContent = '保存できませんでした：' + (e.message||e); }
+  };
+});
+document.getElementById('fix-media-btn').addEventListener('click', async ()=>{
+  const res = document.getElementById('fix-media-result');
+  const scope = document.getElementById('fix-media-scope').value;
+  const cur = currentPeriodNo();
+  const inScope = r => { const n = periodOfDate(r.date); return scope === 'all' ? true : scope === 'current' ? n === cur : (n && n >= 44); };
+  const list = (await getAll('shiryou')).filter(r=>r.source === 'ｽｰﾓ注文住宅' && r.media !== 'ｽｰﾓﾈｯﾄ' && inScope(r));
+  if(!list.length){ res.textContent = '直す対象はありません。'; return; }
+  const byP = {}; list.forEach(r=>{ const n = periodOfDate(r.date); byP[n] = (byP[n]||0) + 1; });
+  const detail = Object.keys(byP).sort((a,b)=>b-a).map(n=>`第${n}期 ${byP[n]}件`).join('、');
+  if(!(await customConfirm(`知った媒体を「ｽｰﾓﾈｯﾄ」に直します（${list.length}件：${detail}）。よろしいですか？`))) return;
+  try{ await saveShiryouBatch(list.map(r=>Object.assign({}, r, { media:'ｽｰﾓﾈｯﾄ', mediaOther:'' }))); res.textContent = `${list.length}件を「ｽｰﾓﾈｯﾄ」に直しました（${detail}）。`; }
+  catch(e){ res.textContent = '保存できませんでした：' + (e.message||e); }
+});
 
 // ===== ホームの一覧：月ごとの区切り・通し番号・来場KPI =====
 const VISIT_KPI_PER_MONTH = 15; // 当社KPI：来場 月15組
@@ -3625,7 +3699,23 @@ document.getElementById('mail-parse-btn').addEventListener('click', ()=>{
 // ・同じ氏名がすでにある行は「重複の可能性」として取り込み前に一覧で確認する
 let pendingCsvImport = null;
 
+// 反響先から「知った媒体」を決める（SUUMO注文住宅からの問い合わせは、媒体を「ｽｰﾓﾈｯﾄ」にする）
+function mediaForSource(source){ return source === 'ｽｰﾓ注文住宅' ? 'ｽｰﾓﾈｯﾄ' : ''; }
+function csvSourceFor(rows, rawSuumo){
+  const sel = (document.getElementById('csv-source') || {}).value;
+  if(sel && sel !== 'auto') return sel;
+  if(sel === '') return '';
+  if(rawSuumo) return 'ｽｰﾓ注文住宅';
+  const head = rows.slice(0, 6).map(r=>(r||[]).join(',')).join('\n');
+  return /SUUMO|スーモ|ｽｰﾓ/i.test(head) ? 'ｽｰﾓ注文住宅' : '';
+}
 function csvRowsToShiryouCandidates(rows){
+  const result = csvRowsToShiryouCandidatesBase(rows);
+  const src = csvSourceFor(rows, result.raw);
+  if(src) result.list.forEach(it=>{ it.rec.source = src; if(!it.rec.media) it.rec.media = mediaForSource(src); });
+  return result;
+}
+function csvRowsToShiryouCandidatesBase(rows){
   const headers = rows[0];
   const col = {
     name: findCol(headers, ['氏名','お名前','名前']),
@@ -3673,7 +3763,7 @@ function csvRowsToShiryouCandidates(rows){
       }
     });
   }
-  return {list, known:list.length>0};
+  return {list, known:list.length>0, raw:list.length>0};
 }
 
 async function runShiryouCsvImport(items, skipped, resultEl){
@@ -3690,7 +3780,8 @@ async function runShiryouCsvImport(items, skipped, resultEl){
   document.getElementById('csv-file').value = '';
   document.getElementById('csv-dup-review').innerHTML = '';
   pendingCsvImport = null;
-  resultEl.textContent = `${imported}件を取り込みました（スキップ：${skipped}件）。反響先・知った媒体は未選択です。`;
+  const src0 = items.length ? (items[0].rec.source || '') : '';
+  resultEl.textContent = `${imported}件を取り込みました（スキップ：${skipped}件）。` + (src0 ? `反響先は「${src0}」、知った媒体は「${items[0].rec.media || '未選択'}」にしました。` : '反響先・知った媒体は未選択です。');
   toast(`${imported}件を登録しました`);
   renderDashboard();
 }
