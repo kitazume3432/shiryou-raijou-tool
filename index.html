@@ -39,7 +39,8 @@
   .hidden{display:none !important;}
 
   .cardgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;}
-  .metric{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 1px 3px rgba(35,35,35,.06);}
+  .cardgrid > *{min-width:0;}
+  .metric{min-width:0; overflow-wrap:anywhere; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 1px 3px rgba(35,35,35,.06);}
   .metric .num{font-size:26px; font-weight:700; color:var(--wood-800);}
   .metric .lbl{font-size:12px; color:var(--ink-soft); margin-top:2px;}
   .metric .sub{font-size:11px; color:var(--ink-faint); margin-top:4px;}
@@ -115,6 +116,7 @@
   .list-table .detail-cell{padding:0; border-top:none;}
   .list-table .detail-cell .listitem{margin:0; border:none; border-radius:0; background:var(--wood-50); border-top:1px solid var(--line);}
   .list-table-wrap{overflow-x:auto;}
+  .list-table td.wrap{white-space:normal; overflow-wrap:anywhere; min-width:7em; max-width:15em; line-height:1.45;}
 
   .agg-group{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:16px; overflow:hidden; box-shadow:0 1px 4px rgba(35,35,35,.06);}
   .agg-group-summary{
@@ -184,7 +186,7 @@
 
   /* ===== デスクトップ（PC）向けレイアウト ===== */
   @media (min-width: 900px){
-    #app{max-width:1100px; padding-bottom:40px;}
+    #app{max-width:min(1500px, calc(100vw - 32px)); padding-bottom:40px;}
     header{position:static; border-radius:0 0 16px 16px;}
     .header-stats{display:flex;}
     nav{
@@ -1541,12 +1543,12 @@ async function buildRaijouTableWrap(filtered){
       <td>${escapeHtml(it.reservationMethod)}</td>
       <td>${escapeHtml(it.date)}</td>
       <td>${escapeHtml(it.name)}</td>
-      <td>${escapeHtml(trimAddressToTown(it.address))}</td>
+      <td class="wrap">${escapeHtml(trimAddressToTown(it.address))}</td>
       <td>${escapeHtml(it.place)}</td>
       <td>${escapeHtml(it.staff)}</td>
       <td>${escapeHtml(it.land)}</td>
       <td>${rankBadgesHtml(it.rank)}</td>
-      <td>${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
+      <td class="wrap">${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
       <td>${it.thanksSent?'<span class="tag-sm badge-shiryou">済</span>':'未'}</td>
       <td>${hasShiryou?'<span class="tag-sm badge-shiryou">済</span>':''}</td>
       <td></td>
@@ -1586,7 +1588,7 @@ function buildShiryouTableWrap(filtered){
     const a2 = blank ? '' : (plan.planned2 ? (it.send2Actual ? done(it.send2Actual) : unsent) : '');
     tr.innerHTML = `
       <td>${escapeHtml(it.date)}</td><td>${escapeHtml(it.name)}${autoTag(it)}</td><td>${escapeHtml(it.source)}</td>
-      <td>${escapeHtml(it.media)}</td><td>${escapeHtml(trimAddressToTown(it.address))}</td><td>${escapeHtml(it.land)}</td><td>${escapeHtml(it.area)}</td>
+      <td>${escapeHtml(it.media)}</td><td class="wrap">${escapeHtml(trimAddressToTown(it.address))}</td><td>${escapeHtml(it.land)}</td><td class="wrap">${escapeHtml(it.area)}</td>
       <td class="ctr">${p1}</td><td class="ctr">${a1}</td><td class="ctr">${p2}</td><td class="ctr">${a2}</td>
       <td class="ctr">${it.outofarea?'<span class="tag-sm badge-gray">エリア外</span>':(it.pending?'<span class="tag-sm badge-pending">対応中</span>':'')}</td><td></td>
     `;
@@ -3741,7 +3743,7 @@ async function printReservationList(){
       <td>${escapeHtml(it.name)}${autoTag(it)}</td>
       <td>${escapeHtml(it.staff)}</td>
       <td>${escapeHtml(it.place)}</td>
-      <td>${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
+      <td class="wrap">${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
       <td>${escapeHtml(it.land)}</td>
       <td>${escapeHtml(it.tel)}</td>
       <td>${escapeHtml(it.address)}</td>
