@@ -801,9 +801,14 @@
   <div class="view hidden" id="view-agg">
     <div class="tabbar">
       <button id="period-all" class="active">全期間</button>
+      <button id="period-fiscal">期ごと</button>
       <button id="period-thismonth">今月</button>
       <button id="period-lastmonth">先月</button>
       <button id="period-custom">期間指定</button>
+    </div>
+    <div id="agg-fiscal-wrap" class="hidden period-switch" style="margin:12px 0 4px;">
+      <label for="agg-fiscal">集計する期</label>
+      <select id="agg-fiscal"></select>
     </div>
     <div id="agg-custom-range" class="hidden row2" style="margin:10px 0;">
       <div>
@@ -2164,7 +2169,11 @@ function rankBadgesHtml(rank){
 
 
 
+let aggFiscal = null; // 「期ごと」で選んでいる期（null＝今期）
 function inPeriod(dateStr, period){
+  if(period==='fiscal'){
+    return !!dateStr && periodOfDate(dateStr) === (aggFiscal || currentPeriodNo());
+  }
   if(period==='custom'){
     if(!aggCustomStart && !aggCustomEnd) return true;
     if(!dateStr) return false;
@@ -2533,6 +2542,23 @@ async function renderAgg(){
 }
 
 document.getElementById('period-all').addEventListener('click', ()=>{ currentPeriod='all'; setPeriodActive('period-all'); document.getElementById('agg-custom-range').classList.add('hidden'); renderAgg(); });
+// 期ごと：第○期（7月〜翌6月）単位で集計する
+async function fillAggFiscalOptions(){
+  const sel = document.getElementById('agg-fiscal');
+  const set = new Set([currentPeriodNo()]);
+  for(const k of ['raijou','shiryou','shinchoku']){ (await getAll(k).catch(()=>[])).forEach(r=>{ const n = periodOfDate(r.date); if(n) set.add(n); }); }
+  const cur = currentPeriodNo();
+  const nums = Array.from(set).filter(n=>n>=41 && n<=cur+1).sort((a,b)=>b-a);
+  sel.innerHTML = nums.map(n=>`<option value="${n}">第${n}期（${periodRangeText(n)}）${n===cur?'　今期':''}</option>`).join('');
+  sel.value = String(aggFiscal || cur);
+}
+document.getElementById('period-fiscal').addEventListener('click', async ()=>{
+  currentPeriod='fiscal'; setPeriodActive('period-fiscal');
+  document.getElementById('agg-custom-range').classList.add('hidden');
+  await fillAggFiscalOptions();
+  renderAgg();
+});
+document.getElementById('agg-fiscal').addEventListener('change', (e)=>{ aggFiscal = Number(e.target.value); renderAgg(); });
 document.getElementById('period-thismonth').addEventListener('click', ()=>{ currentPeriod='thismonth'; setPeriodActive('period-thismonth'); document.getElementById('agg-custom-range').classList.add('hidden'); renderAgg(); });
 document.getElementById('period-lastmonth').addEventListener('click', ()=>{ currentPeriod='lastmonth'; setPeriodActive('period-lastmonth'); document.getElementById('agg-custom-range').classList.add('hidden'); renderAgg(); });
 document.getElementById('period-custom').addEventListener('click', ()=>{
@@ -2550,7 +2576,8 @@ document.getElementById('agg-custom-end').addEventListener('change', ()=>{
   if(currentPeriod==='custom') renderAgg();
 });
 function setPeriodActive(id){
-  ['period-all','period-thismonth','period-lastmonth','period-custom'].forEach(x=>document.getElementById(x).classList.toggle('active', x===id));
+  ['period-all','period-fiscal','period-thismonth','period-lastmonth','period-custom'].forEach(x=>document.getElementById(x).classList.toggle('active', x===id));
+  document.getElementById('agg-fiscal-wrap').classList.toggle('hidden', id !== 'period-fiscal');
 }
 
 const INTEREST_KEYWORDS = {
