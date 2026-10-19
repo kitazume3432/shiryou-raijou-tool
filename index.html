@@ -124,6 +124,31 @@
   .list-table .detail-cell{padding:0; border-top:none;}
   .list-table .detail-cell .listitem{margin:0; border:none; border-radius:0; background:var(--wood-50); border-top:1px solid var(--line);}
   .list-table-wrap{overflow-x:auto;}
+  .list-table th.no-col, .list-table td.no-col{text-align:center; width:2.6em; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .list-table td.no-col{font-weight:600;}
+  .list-table tr.month-row td{background:var(--wood-50) !important; padding:9px 12px; border-top:2px solid var(--wood-200); white-space:nowrap;}
+  .month-head{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .month-head .m-label{font-size:15px; font-weight:700; color:var(--charcoal); min-width:3.2em;}
+  .month-head .m-count{font-size:14px; font-weight:700; color:var(--wood-800); font-variant-numeric:tabular-nums;}
+  .month-head .m-kpi{font-size:12px; color:var(--ink-soft);}
+  .month-head .m-kpi.ok{color:var(--ok); font-weight:700;}
+  .kpi-bar{display:inline-block; width:120px; height:6px; border-radius:6px; background:var(--wood-100); overflow:hidden; vertical-align:middle;}
+  .kpi-bar i{display:block; height:100%; background:var(--wood); border-radius:6px;}
+  .kpi-bar.ok i{background:var(--ok);}
+  .kpi-strip{display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:6px; margin:4px 0 12px;}
+  .kpi-strip.half{grid-template-columns:repeat(6,minmax(0,1fr));}
+  .kpi-cell{font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:7px 4px 8px; text-align:center; cursor:pointer;}
+  .kpi-cell:hover{border-color:var(--wood-200);}
+  .kpi-cell:focus-visible{outline:2px solid var(--wood); outline-offset:1px;}
+  .kpi-cell .km{display:block; font-size:11px; color:var(--ink-soft);}
+  .kpi-cell .kc{display:block; font-size:17px; font-weight:700; color:var(--wood-800); line-height:1.3; font-variant-numeric:tabular-nums;}
+  .kpi-cell .kpi-bar{width:80%; height:4px; margin-top:3px;}
+  .kpi-cell.ok{border-color:rgba(110,143,110,.55);}
+  .kpi-cell.ok .kc{color:var(--ok);}
+  .kpi-cell.now{box-shadow:0 0 0 2px var(--wood);}
+  .kpi-cell.future{opacity:.45; cursor:default;}
+  .kpi-note{font-size:12px; color:var(--ink-soft); margin:0 0 6px;}
+  @media (max-width:700px){ .kpi-strip{grid-template-columns:repeat(6,minmax(0,1fr));} .kpi-bar{width:70px;} }
   .list-table td.wrap{white-space:normal; overflow-wrap:anywhere; min-width:7em; max-width:15em; line-height:1.45;}
 
   .agg-group{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:16px; overflow:hidden; box-shadow:0 1px 4px rgba(35,35,35,.06);}
@@ -1490,6 +1515,86 @@ async function renderDashboardInner(){
   await renderDashStackedList('shinchoku');
 }
 
+// ===== ホームの一覧：月ごとの区切り・通し番号・来場KPI =====
+const VISIT_KPI_PER_MONTH = 15; // 当社KPI：来場 月15組
+function ymOf(d){ return /^\d{4}-\d{2}/.test(d||'') ? d.slice(0,7) : ''; }
+function monthLabel(ym){ return ym ? `${Number(ym.slice(5,7))}月` : '日付なし'; }
+function kpiHtml(count, cls){
+  const pct = Math.min(100, Math.round(count / VISIT_KPI_PER_MONTH * 100));
+  const ok = count >= VISIT_KPI_PER_MONTH;
+  return `<span class="m-kpi${ok?' ok':''}">${ok ? `目標${VISIT_KPI_PER_MONTH}組 達成` : `目標${VISIT_KPI_PER_MONTH}組まで あと${VISIT_KPI_PER_MONTH - count}組`}</span>`
+    + `<span class="kpi-bar${ok?' ok':''} ${cls||''}"><i style="width:${pct}%"></i></span>`;
+}
+// 表の先頭に「No」列を足し、行に番号を振る（startAt：月ごとに1から振り直すときに使う）
+function addNumberColumn(table){
+  const head = table.tHead; if(!head) return;
+  const th = document.createElement('th'); th.className = 'no-col'; th.textContent = 'No';
+  th.rowSpan = head.rows.length; head.rows[0].insertBefore(th, head.rows[0].firstChild);
+  let n = 0;
+  Array.from(table.tBodies[0] ? table.tBodies[0].rows : []).forEach(tr=>{
+    if(tr.classList.contains('month-row')) return;
+    const td = document.createElement('td'); td.className = 'no-col'; td.textContent = ++n;
+    tr.insertBefore(td, tr.firstChild);
+  });
+}
+function addMonthGroups(wrap, items, kind){
+  const table = wrap.querySelector('table'); if(!table || !table.tBodies[0]) return;
+  const rows = Array.from(table.tBodies[0].rows);
+  if(rows.length !== items.length) return; // 想定外の形のときは何もしない
+  const head = table.tHead;
+  const th = document.createElement('th'); th.className = 'no-col'; th.textContent = 'No';
+  th.rowSpan = head.rows.length; head.rows[0].insertBefore(th, head.rows[0].firstChild);
+  const counts = {};
+  items.forEach(it=>{ const ym = ymOf(it.date); counts[ym] = (counts[ym]||0) + 1; });
+  let prev = null, n = 0;
+  rows.forEach((tr, i)=>{
+    const ym = ymOf(items[i].date);
+    const colCount = tr.cells.length + 1;
+    if(ym !== prev){
+      prev = ym; n = 0;
+      const mr = document.createElement('tr'); mr.className = 'month-row'; mr.id = `mrow-${kind}-${ym || 'none'}`;
+      const td = document.createElement('td'); td.colSpan = colCount;
+      const c = counts[ym];
+      td.innerHTML = `<div class="month-head"><span class="m-label">${ym ? `${Number(ym.slice(0,4))}年 ` : ''}${monthLabel(ym)}</span>`
+        + `<span class="m-count">${kind==='raijou' ? c + '組' : c + '件'}</span>`
+        + (kind==='raijou' && ym ? kpiHtml(c) : '') + `</div>`;
+      mr.appendChild(td);
+      tr.parentNode.insertBefore(mr, tr);
+    }
+    const no = document.createElement('td'); no.className = 'no-col'; no.textContent = ++n;
+    tr.insertBefore(no, tr.firstChild);
+  });
+}
+// 来場KPIの月別一覧（選んだ期の各月：何組来たか／目標15組）
+function buildVisitKpiStrip(items){
+  const sel = Number(selectedDashPeriod());
+  const months = [];
+  if(sel === 41){ for(let m=1;m<=6;m++) months.push(`2019-${String(m).padStart(2,'0')}`); }
+  else { const y = 1977 + sel; for(let k=0;k<12;k++){ const m = 7 + k; months.push(m<=12 ? `${y}-${String(m).padStart(2,'0')}` : `${y+1}-${String(m-12).padStart(2,'0')}`); } }
+  const counts = {}; items.forEach(it=>{ const ym = ymOf(it.date); counts[ym] = (counts[ym]||0) + 1; });
+  const nowYm = formatDateLocal(new Date()).slice(0,7);
+  const reached = months.filter(ym => ym <= nowYm && (counts[ym]||0) >= VISIT_KPI_PER_MONTH).length;
+  const past = months.filter(ym => ym < nowYm).length + (months.includes(nowYm) ? 1 : 0);
+  const box = document.createElement('div');
+  box.innerHTML = `<p class="kpi-note">来場KPI（月${VISIT_KPI_PER_MONTH}組）：達成 ${reached}か月／${past}か月　月を押すと、その月の一覧へ移動します</p>`;
+  const strip = document.createElement('div'); strip.className = 'kpi-strip' + (months.length === 6 ? ' half' : '');
+  months.forEach(ym=>{
+    const c = counts[ym] || 0, future = ym > nowYm, ok = c >= VISIT_KPI_PER_MONTH;
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'kpi-cell' + (ok ? ' ok' : '') + (ym === nowYm ? ' now' : '') + (future ? ' future' : '');
+    b.title = future ? 'これからの月' : `${monthLabel(ym)}：${c}組（目標${VISIT_KPI_PER_MONTH}組）`;
+    const pct = Math.min(100, Math.round(c / VISIT_KPI_PER_MONTH * 100));
+    b.innerHTML = `<span class="km">${monthLabel(ym)}</span><span class="kc">${future ? '–' : c}</span><span class="kpi-bar${ok?' ok':''}"><i style="width:${future?0:pct}%"></i></span>`;
+    if(!future) b.addEventListener('click', ()=>{
+      const row = document.getElementById(`mrow-raijou-${ym}`);
+      if(row) row.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    });
+    strip.appendChild(b);
+  });
+  box.appendChild(strip);
+  return box;
+}
+
 // ===== ホームの一覧の切り替え（上の件数カードを押すと、その一覧だけを表示） =====
 let dashSec = (()=>{ try{ return localStorage.getItem('dash-sec') || 'shiryou'; }catch(e){ return 'shiryou'; } })();
 function showDashSection(sec){
@@ -1753,6 +1858,9 @@ async function renderDashStackedList(kind){
   if(kind==='raijou') wrap = await buildRaijouTableWrap(filtered);
   else if(kind==='shiryou') wrap = buildShiryouTableWrap(filtered);
   else wrap = buildShinchokuTableWrap(filtered);
+  if(kind==='raijou' || kind==='shiryou') addMonthGroups(wrap, filtered, kind);
+  else wrap.querySelectorAll('table').forEach(t=>addNumberColumn(t));
+  if(kind==='raijou' && !q && selectedDashPeriod() !== 'all') content.appendChild(buildVisitKpiStrip(filtered));
   content.appendChild(wrap);
 }
 document.getElementById('dash-shiryou-search').addEventListener('input', ()=>renderDashStackedList('shiryou'));
