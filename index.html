@@ -40,6 +40,14 @@
 
   .cardgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;}
   .cardgrid > *{min-width:0;}
+  .dash-tabs{grid-template-columns:repeat(3,1fr);}
+  .dash-tabs .metric-tab{font:inherit; color:inherit; text-align:left; cursor:pointer; position:relative; transition:border-color .2s, box-shadow .2s, transform .2s;}
+  .metric-tab:hover{border-color:var(--wood-200);}
+  .metric-tab:focus-visible{outline:2px solid var(--wood); outline-offset:2px;}
+  .metric-tab[aria-selected="true"]{border-color:var(--wood); box-shadow:0 0 0 1px var(--wood), 0 4px 14px rgba(173,138,92,.22);}
+  .metric-tab[aria-selected="true"]::after{content:''; position:absolute; left:14px; right:14px; bottom:-1px; height:3px; border-radius:3px 3px 0 0; background:var(--wood);}
+  .metric-tab[aria-selected="false"] .num{color:var(--ink-soft);}
+  @media (max-width:420px){ .dash-tabs .metric-tab{padding:12px 10px;} .dash-tabs .metric-tab .num{font-size:22px;} .dash-tabs .metric-tab .sub{display:none;} }
   .metric{min-width:0; overflow-wrap:anywhere; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 1px 3px rgba(35,35,35,.06);}
   .metric .num{font-size:26px; font-weight:700; color:var(--wood-800);}
   .metric .lbl{font-size:12px; color:var(--ink-soft); margin-top:2px;}
@@ -213,6 +221,7 @@
     nav svg{width:18px; height:18px;}
     .view{padding:0 20px;}
     .cardgrid{grid-template-columns:repeat(4,1fr);}
+    .cardgrid.dash-tabs{grid-template-columns:repeat(3,minmax(0,280px));}
     form{display:grid; grid-template-columns:repeat(3,1fr); gap:14px 18px; align-items:start;}
     .row2{display:contents;}
     form > div.full-w{grid-column:1 / -1;}
@@ -314,13 +323,15 @@
         <select id="dash-period"></select>
         <span class="hint">氏名で検索したときは、全期間から探します</span>
       </div>
-      <div class="cardgrid">
-        <div class="metric"><div class="num" id="m-shiryou">0</div><div class="lbl">資料請求</div><div class="sub" id="m-shiryou-sub"></div></div>
-        <div class="metric"><div class="num" id="m-raijou">0</div><div class="lbl">来場者数</div><div class="sub" id="m-raijou-sub"></div></div>
+      <div class="cardgrid dash-tabs" role="tablist" aria-label="表示する一覧">
+        <button type="button" class="metric metric-tab" role="tab" data-sec="shiryou"><div class="num" id="m-shiryou">0</div><div class="lbl">資料請求</div><div class="sub" id="m-shiryou-sub"></div></button>
+        <button type="button" class="metric metric-tab" role="tab" data-sec="raijou"><div class="num" id="m-raijou">0</div><div class="lbl">来場者数</div><div class="sub" id="m-raijou-sub"></div></button>
+        <button type="button" class="metric metric-tab" role="tab" data-sec="shinchoku"><div class="num" id="m-shinchoku">0</div><div class="lbl">進捗</div><div class="sub" id="m-shinchoku-sub"></div></button>
       </div>
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:24px;">
+    <div class="dash-sec" id="sec-shiryou">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
       <div class="section-title" style="margin:0;">資料請求一覧</div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <button type="button" id="dash-add-shiryou-btn" class="btn-primary" style="margin-top:0; padding:9px 16px; font-size:13px; white-space:nowrap;">＋資料請求を入力</button>
@@ -328,8 +339,10 @@
     </div>
     <input type="text" class="searchbar" id="dash-shiryou-search" placeholder="氏名で検索">
     <div id="dash-shiryou-content"></div>
+    </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:24px;">
+    <div class="dash-sec" id="sec-raijou">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
       <div class="section-title" style="margin:0;">来場者一覧</div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <button type="button" id="dash-add-raijou-btn" class="btn-primary" style="margin-top:0; padding:9px 16px; font-size:13px; white-space:nowrap;">＋来場情報を入力</button>
@@ -337,8 +350,10 @@
     </div>
     <input type="text" class="searchbar" id="dash-raijou-search" placeholder="氏名で検索">
     <div id="dash-raijou-content"></div>
+    </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:24px;">
+    <div class="dash-sec" id="sec-shinchoku">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
       <div class="section-title" style="margin:0;">進捗一覧</div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <button type="button" id="dash-add-shinchoku-btn" class="btn-primary" style="margin-top:0; padding:9px 16px; font-size:13px; white-space:nowrap;">＋進捗を入力</button>
@@ -346,6 +361,7 @@
     </div>
     <input type="text" class="searchbar" id="dash-shinchoku-search" placeholder="氏名で検索">
     <div id="dash-shinchoku-content"></div>
+    </div>
   </div>
 
   <!-- 来場入力 -->
@@ -1451,6 +1467,8 @@ async function renderDashboardInner(){
   document.getElementById('m-shiryou-sub').textContent = pLabel + '／うちエリア外 ' + outCount + '件／対応中 ' + pendingCount + '件';
   document.getElementById('m-raijou').textContent = raijou.length;
   document.getElementById('m-raijou-sub').textContent = pLabel;
+  document.getElementById('m-shinchoku').textContent = shinchokuAll.filter(r=>inDashPeriod(r.date)).length;
+  document.getElementById('m-shinchoku-sub').textContent = pLabel;
 
   const now = new Date();
   const thisMonthCount = raijou.filter(r=>{
@@ -1471,6 +1489,19 @@ async function renderDashboardInner(){
   await renderDashStackedList('raijou');
   await renderDashStackedList('shinchoku');
 }
+
+// ===== ホームの一覧の切り替え（上の件数カードを押すと、その一覧だけを表示） =====
+let dashSec = (()=>{ try{ return localStorage.getItem('dash-sec') || 'shiryou'; }catch(e){ return 'shiryou'; } })();
+function showDashSection(sec){
+  dashSec = sec;
+  try{ localStorage.setItem('dash-sec', sec); }catch(e){}
+  ['shiryou','raijou','shinchoku'].forEach(k=>{
+    document.getElementById('sec-'+k).classList.toggle('hidden', k !== sec);
+  });
+  document.querySelectorAll('.metric-tab').forEach(b=> b.setAttribute('aria-selected', String(b.dataset.sec === sec)));
+}
+document.querySelectorAll('.metric-tab').forEach(b=> b.addEventListener('click', ()=> showDashSection(b.dataset.sec)));
+showDashSection(dashSec);
 
 // ===== ホームの「表示する期」 =====
 // 期は7月〜翌年6月（第49期＝2026年7月〜2027年6月）。第41期だけは2019年1月〜6月。
