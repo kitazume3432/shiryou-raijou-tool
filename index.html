@@ -137,6 +137,9 @@
   .m-stage b{color:var(--charcoal);}
   .m-stage.contract{border-color:var(--wood); color:var(--wood-dark);}
   .stage-tag{white-space:nowrap;}
+  .list-table tr.stage-row td{background:var(--card) !important; padding:7px 12px 6px 22px; border-top:1px solid var(--wood-100);}
+  .list-table tr.stage-row .stage-tag{font-size:12px; font-weight:700;}
+  .stage-count{margin-left:10px; font-size:12px; color:var(--ink-soft); font-variant-numeric:tabular-nums;}
   .stage-tag.contract{background:var(--wood); color:#fff; border-color:var(--wood);}
   .month-head{white-space:normal;}
   .kpi-bar{display:inline-block; width:120px; height:6px; border-radius:6px; background:var(--wood-100); overflow:hidden; vertical-align:middle;}
@@ -1553,12 +1556,12 @@ function addMonthGroups(wrap, items, kind){
   th.rowSpan = head.rows.length; head.rows[0].insertBefore(th, head.rows[0].firstChild);
   const counts = {};
   items.forEach(it=>{ const ym = ymOf(it.date); counts[ym] = (counts[ym]||0) + 1; });
-  let prev = null, n = 0;
+  let prev = null, prevStage = null, n = 0;
   rows.forEach((tr, i)=>{
     const ym = ymOf(items[i].date);
     const colCount = tr.cells.length + 1;
     if(ym !== prev){
-      prev = ym; n = 0;
+      prev = ym; n = 0; prevStage = null;
       const mr = document.createElement('tr'); mr.className = 'month-row'; mr.id = `mrow-${kind}-${ym || 'none'}`;
       const td = document.createElement('td'); td.colSpan = colCount;
       const c = counts[ym];
@@ -1568,6 +1571,18 @@ function addMonthGroups(wrap, items, kind){
         + (kind==='shinchoku' ? stageBreakdownHtml(items.filter(it=>ymOf(it.date)===ym)) : '') + `</div>`;
       mr.appendChild(td);
       tr.parentNode.insertBefore(mr, tr);
+    }
+    // 進捗は、月の中をステージごとに区切る（番号もステージごとに1から）
+    if(kind === 'shinchoku' && items[i].stage !== prevStage){
+      prevStage = items[i].stage; n = 0;
+      const cnt = items.filter(it=>ymOf(it.date)===ym && it.stage===prevStage);
+      const total = prevStage === '請負契約' ? cnt.reduce((s2,it)=>s2 + parseAmount(it.amount), 0) : 0;
+      const sr = document.createElement('tr'); sr.className = 'stage-row';
+      const td = document.createElement('td'); td.colSpan = colCount;
+      td.innerHTML = `<span class="tag-sm stage-tag${prevStage==='請負契約'?' contract':''}">${escapeHtml(prevStage||'未設定')}</span>`
+        + `<span class="stage-count">${cnt.length}件${total>0 ? `　¥${total.toLocaleString('ja-JP')}` : ''}</span>`;
+      sr.appendChild(td);
+      tr.parentNode.insertBefore(sr, tr);
     }
     const no = document.createElement('td'); no.className = 'no-col'; no.textContent = ++n;
     tr.insertBefore(no, tr.firstChild);
@@ -1584,7 +1599,7 @@ function stageBreakdownHtml(list){
 function buildShinchokuMonthTable(items){
   const wrap = document.createElement('div'); wrap.className = 'list-table-wrap';
   const table = document.createElement('table'); table.className = 'list-table grid-lines';
-  table.innerHTML = `<thead><tr><th>日付</th><th>ステージ</th><th>氏名</th><th>担当</th><th>金額</th><th>きっかけ</th><th>紹介</th><th>土地</th><th></th></tr></thead>`;
+  table.innerHTML = `<thead><tr><th>日付</th><th>氏名</th><th>担当</th><th>金額</th><th>きっかけ</th><th>紹介</th><th>土地</th><th></th></tr></thead>`;
   const tbody = document.createElement('tbody');
   items.forEach(it=>{
     const tr = document.createElement('tr'); tr.className = 'row-clickable'; tr.title = 'クリックして編集';
@@ -1593,7 +1608,6 @@ function buildShinchokuMonthTable(items){
       : escapeHtml(it.staff||'');
     const isContract = it.stage === '請負契約';
     tr.innerHTML = `<td>${escapeHtml(it.date||'')}</td>`
-      + `<td><span class="tag-sm stage-tag${isContract?' contract':''}">${escapeHtml(it.stage||'未設定')}</span></td>`
       + `<td>${escapeHtml(it.name||'')}</td><td>${staff}</td>`
       + `<td class="num-col">${isContract ? escapeHtml(formatAmountYen(it.amount)) : ''}</td>`
       + `<td class="wrap">${isContract ? escapeHtml(it.trigger||'') + (it.triggerOther ? '(' + escapeHtml(it.triggerOther) + ')' : '') : ''}</td>`
@@ -1894,9 +1908,9 @@ async function renderDashStackedList(kind){
   const filtered = q ? items.filter(it=>(it.name||'').includes(q)) : items.filter(it=>inDashPeriod(it.date));
   filtered.sort((a,b)=> (a.date||'').localeCompare(b.date||'')); // 日付の古い順（昇順）
   if(kind==='shinchoku'){
-    // 進捗：日付の古い順、同じ日はステージの順。日付のないものは最後にまとめる
+    // 進捗：月ごと → その月の中はステージ順（資金計画→…→補助金） → 日付順。日付のないものは最後にまとめる
     const so = st => { const i = STAGES.indexOf(st); return i < 0 ? 99 : i; };
-    filtered.sort((a,b)=> ((a.date?0:1) - (b.date?0:1)) || (a.date||'').localeCompare(b.date||'') || (so(a.stage) - so(b.stage)));
+    filtered.sort((a,b)=> ((a.date?0:1) - (b.date?0:1)) || ymOf(a.date).localeCompare(ymOf(b.date)) || (so(a.stage) - so(b.stage)) || (a.date||'').localeCompare(b.date||''));
   }
   content.innerHTML = '';
   if(filtered.length===0){
