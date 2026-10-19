@@ -171,7 +171,52 @@
   .agg-group-summary::-webkit-details-marker{display:none;}
   .agg-group-summary::after{content:'▾'; color:var(--wood-400); font-size:13px; transition:transform .15s;}
   .agg-group:not([open]) .agg-group-summary::after{transform:rotate(-90deg);}
-  .agg-group-body{padding:4px 16px 16px;}
+  .agg-group-body{padding:2px 16px 14px;}
+  .agg-sub{display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:700; color:var(--charcoal); margin:14px 0 8px; letter-spacing:.03em;}
+  .agg-sub span{font-size:12px; font-weight:400; color:var(--ink-soft);}
+  .agg-note{font-size:11.5px; color:var(--ink-faint); margin:6px 0 0;}
+  .agg-kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:6px 0 14px;}
+  .agg-kpi{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px;}
+  .agg-kpi.accent{border-color:var(--wood); box-shadow:inset 3px 0 0 var(--wood);}
+  .agg-kpi .k-lbl{font-size:12px; color:var(--ink-soft); font-weight:600;}
+  .agg-kpi .k-num{font-size:26px; font-weight:700; color:var(--wood-800); line-height:1.25; font-variant-numeric:tabular-nums;}
+  .agg-kpi .k-num.sm{font-size:20px; padding:3px 0 2px;}
+  .agg-kpi .k-num small{font-size:13px; margin-left:2px; color:var(--ink-soft); font-weight:600;}
+  .agg-kpi .k-sub{font-size:11px; color:var(--ink-faint); margin-top:2px;}
+  @media (max-width:760px){ .agg-kpis{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  .bd-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; align-items:start;}
+  .bd-card{border:1px solid var(--line); border-radius:10px; padding:10px 12px 8px; background:#fff; min-width:0;}
+  .bd-card .bd-head{display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid var(--wood-100); padding-bottom:5px; margin-bottom:4px;}
+  .bd-card h4{margin:0; font-size:12.5px; font-weight:700; color:var(--wood-800);}
+  .bd-card .bd-head span{font-size:11.5px; color:var(--ink-faint);}
+  .bd-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .bd-table td{padding:3px 0; vertical-align:middle;}
+  .bd-table tr + tr td{border-top:1px dotted var(--wood-100);}
+  .bd-name{width:38%; padding-right:8px !important; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:0;}
+  .bd-bar{width:40%;}
+  .bd-bar span{display:block; height:6px; border-radius:3px; background:var(--wood-50);}
+  .bd-bar i{display:block; height:100%; border-radius:3px; background:var(--wood);}
+  .bd-num{width:9%; text-align:right; font-weight:700; font-variant-numeric:tabular-nums; padding-left:6px !important;}
+  .bd-pct{width:13%; text-align:right; color:var(--ink-soft); font-variant-numeric:tabular-nums; font-size:11.5px;}
+  .bd-empty{font-size:12px; color:var(--ink-faint); margin:6px 0;}
+  .mx-table{width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; text-align:center; font-variant-numeric:tabular-nums;}
+  .mx-table th{font-size:11.5px; color:var(--ink-soft); font-weight:600; padding:3px 2px;}
+  .mx-table td{padding:4px 2px; border:1px solid #fff;}
+  .mx-cell{background:rgba(173,138,92,var(--a,0)); border-radius:4px;}
+  .mx-total{font-weight:700; color:var(--wood-800);}
+  .mx-foot th, .mx-foot td{border-top:1px solid var(--wood-100);}
+  .z{color:var(--wood-200);}
+  .agg-table{width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; background:#fff;}
+  .agg-table th{background:var(--wood-50); color:var(--wood-800); font-weight:700; font-size:11.5px; padding:6px 8px; border-bottom:1px solid var(--wood-200); text-align:left; line-height:1.3; white-space:nowrap;}
+  .agg-table th small, .agg-table td small{font-weight:400; color:var(--ink-faint); font-size:10.5px;}
+  .agg-table td{padding:5px 8px; border-bottom:1px solid var(--wood-100); white-space:nowrap;}
+  .agg-table .n{text-align:right;}
+  .agg-table tr.total td{font-weight:700; border-top:1px solid var(--wood-200); background:var(--wood-50);}
+  .agg-table .hl{background:rgba(173,138,92,.08);}
+  .agg-table tr.hl td{font-weight:700;}
+  .agg-table.flow .bd-bar{width:34%;}
+  .agg-table.matrix td:first-child{font-weight:600;}
+  .agg-table .funnel-target-input{width:62px !important; padding:3px 5px !important; font-size:12px;}
   .agg-group-body .section-title:first-child{margin-top:8px;}
 
   .toast{
@@ -810,13 +855,13 @@
   <!-- 集計 -->
   <div class="view hidden" id="view-agg">
     <div class="tabbar">
-      <button id="period-all" class="active">全期間</button>
-      <button id="period-fiscal">期ごと</button>
+      <button id="period-fiscal" class="active">期ごと</button>
+      <button id="period-all">全期間</button>
       <button id="period-thismonth">今月</button>
       <button id="period-lastmonth">先月</button>
       <button id="period-custom">期間指定</button>
     </div>
-    <div id="agg-fiscal-wrap" class="hidden period-switch" style="margin:12px 0 4px;">
+    <div id="agg-fiscal-wrap" class="period-switch" style="margin:12px 0 4px;">
       <label for="agg-fiscal">集計する期</label>
       <select id="agg-fiscal"></select>
     </div>
@@ -2268,9 +2313,9 @@ function convCardHtml(visits, stages){
 }
 function convSectionHtml(raijouAll, stagesAll, visits, stages){
   const contractsAll = contractsOf(stagesAll);
-  const rowsHtml = (rows) => rows.map(r=>`<tr${r.cls?` class="${r.cls}"`:''}><td>${r.label}</td><td class="num-col">${r.v}組</td><td class="num-col">${r.c === null ? '進捗データなし' : r.c + '件'}</td><td class="num-col"><b>${r.c === null ? '―' : rateText(r.c, r.v)}</b></td>${r.cum ? `<td class="num-col">${r.cum.v}組</td><td class="num-col">${r.cum.c}件</td><td class="num-col">${rateText(r.cum.c, r.cum.v)}</td>` : ''}${r.cohort !== undefined ? `<td class="num-col">${r.cohort}組（${rateText(r.cohort, r.v)}）</td>` : ''}</tr>`).join('');
+  const rowsHtml = (rows) => rows.map(r=>`<tr${r.cls?` class="${r.cls}"`:''}><td>${r.label}</td><td class="n">${r.v}組</td><td class="n">${r.c === null ? '進捗データなし' : r.c + '件'}</td><td class="n"><b>${r.c === null ? '―' : rateText(r.c, r.v)}</b></td>${r.cum ? `<td class="n">${r.cum.v}組</td><td class="n">${r.cum.c}件</td><td class="n">${rateText(r.cum.c, r.cum.v)}</td>` : ''}${r.cohort !== undefined ? `<td class="n">${r.cohort}組（${rateText(r.cohort, r.v)}）</td>` : ''}</tr>`).join('');
   let html = `<details class="agg-group" open><summary class="agg-group-summary">🎯 来場からの成約率（KPI）</summary><div class="agg-group-body">`;
-  html += `<p style="font-size:12.5px; color:var(--ink-soft); margin:8px 0 12px;">成約率＝その期間の<b>請負契約件数 ÷ 来場組数</b>。「来場者のうち契約済み」は、その期間に来場した人のうち、のちに請負契約の記録がある人の数（名前で照合した参考値）です。</p>`;
+  html += `<p class="agg-note" style="margin:8px 0 10px;">成約率＝その期間の<b>請負契約件数 ÷ 来場組数</b>。「来場者のうち契約済み」は、その期間に来場した人のうち、のちに請負契約の記録がある人の数（名前で照合した参考値）です。</p>`;
   if(currentPeriod === 'fiscal'){
     // 期ごと：月別
     const n = aggFiscal || currentPeriodNo();
@@ -2285,7 +2330,7 @@ function convSectionHtml(raijouAll, stagesAll, visits, stages){
       cv += v; cc += c;
       return { label: `${Number(ym.slice(0,4))}年${Number(ym.slice(5,7))}月`, v, c, cum: { v: cv, c: cc } };
     });
-    html += `<div class="list-table-wrap"><table class="list-table grid-lines"><thead><tr><th>月</th><th class="num-col">来場</th><th class="num-col">請負契約</th><th class="num-col">成約率</th><th class="num-col">累計来場</th><th class="num-col">累計契約</th><th class="num-col">累計成約率</th></tr></thead><tbody>${rowsHtml(rows)}</tbody></table></div>`;
+    html += `<div class="list-table-wrap"><table class="agg-table"><thead><tr><th>月</th><th class="n">来場</th><th class="n">請負契約</th><th class="n">成約率</th><th class="n">累計来場</th><th class="n">累計契約</th><th class="n">累計成約率</th></tr></thead><tbody>${rowsHtml(rows)}</tbody></table></div>`;
   } else if(currentPeriod === 'all'){
     // 全期間：期ごとの一覧
     const nums = Array.from(new Set(raijouAll.map(r=>periodOfDate(r.date)).filter(Boolean))).sort((a,b)=>b-a);
@@ -2295,10 +2340,10 @@ function convSectionHtml(raijouAll, stagesAll, visits, stages){
       const c = hasStage ? contractsAll.filter(p=>periodOfDate(p.date)===n).length : null;
       return { label: `第${n}期（${periodRangeText(n)}）${n===currentPeriodNo()?'　今期':''}`, v: vs.length, c, cohort: visitorsContracted(vs, contractsAll).length, cls: n===currentPeriodNo() ? 'row-now' : '' };
     });
-    html += `<div class="list-table-wrap"><table class="list-table grid-lines"><thead><tr><th>期</th><th class="num-col">来場</th><th class="num-col">請負契約</th><th class="num-col">成約率</th><th class="num-col">来場者のうち契約済み</th></tr></thead><tbody>${rowsHtml(rows)}</tbody></table></div>`;
+    html += `<div class="list-table-wrap"><table class="agg-table"><thead><tr><th>期</th><th class="n">来場</th><th class="n">請負契約</th><th class="n">成約率</th><th class="n">来場者のうち契約済み</th></tr></thead><tbody>${rowsHtml(rows)}</tbody></table></div>`;
   }
   const cohort = visitorsContracted(visits, contractsAll).length;
-  html += `<p style="font-size:13px; margin:12px 0 0;">この期間：来場 <b>${visits.length}組</b>／請負契約 <b>${contractsOf(stages).length}件</b>／成約率 <b>${rateText(contractsOf(stages).length, visits.length)}</b>${CONTRACT_RATE_KPI ? `（目標${CONTRACT_RATE_KPI}%）` : ''}　｜　来場者のうち契約済み ${cohort}組（${rateText(cohort, visits.length)}）</p>`;
+  html += `<p style="font-size:12.5px; margin:10px 0 0;">この期間：来場 <b>${visits.length}組</b>／請負契約 <b>${contractsOf(stages).length}件</b>／成約率 <b>${rateText(contractsOf(stages).length, visits.length)}</b>${CONTRACT_RATE_KPI ? `（目標${CONTRACT_RATE_KPI}%）` : ''}　｜　来場者のうち契約済み ${cohort}組（${rateText(cohort, visits.length)}）</p>`;
   html += `</div></details>`;
   return html;
 }
@@ -2413,8 +2458,37 @@ function targetInputHtml(key, value){
   return `<input type="number" class="funnel-target-input" data-key="${key}" value="${value!=null && value!=='' ? value : ''}" style="width:64px; text-align:right; border:1px solid var(--line); border-radius:6px; padding:4px 6px;">`;
 }
 
-let currentPeriod = 'all';
+let currentPeriod = 'fiscal'; // 集計を開いたときは「期ごと（今期）」
 let aggCustomStart = '', aggCustomEnd = '';
+
+// ===== 集計：見やすい表のための部品 =====
+const fmtPct = (n, d) => d ? (Math.round(n / d * 1000) / 10) + '%' : '―';
+const yen = v => '¥' + Math.round(v || 0).toLocaleString('ja-JP');
+// 内訳表（項目｜バー｜件数｜割合）
+function breakdownCard(title, pairs, total, opt){
+  opt = opt || {};
+  const max = Math.max(1, ...pairs.map(p=>p[1]));
+  const rows = pairs.filter(p=>p[1] > 0 || opt.showZero).map(([name, v])=>
+    `<tr><td class="bd-name">${escapeHtml(name)}</td><td class="bd-bar"><span><i style="width:${Math.round(v / max * 100)}%"></i></span></td><td class="bd-num">${v}</td><td class="bd-pct">${fmtPct(v, total)}</td></tr>`).join('');
+  return `<section class="bd-card${opt.wide ? ' wide' : ''}"><div class="bd-head"><h4>${escapeHtml(title)}</h4><span>${total}${opt.unit || '件'}</span></div>`
+    + (rows ? `<table class="bd-table"><tbody>${rows}</tbody></table>` : `<p class="bd-empty">データがありません</p>`) + `</section>`;
+}
+// ランク（A〜E × 1〜5）のクロス表
+function rankMatrixCard(visits){
+  const L = ['A','B','C','D','E','不明'], N = ['1','2','3','4','5','不明'];
+  const cell = {}; visits.forEach(r=>{ const [a, b] = (r.rank || '').split('-'); const k = (a || '不明') + '|' + (b || '不明'); cell[k] = (cell[k] || 0) + 1; });
+  const rowTotal = l => N.reduce((s, n)=>s + (cell[l + '|' + n] || 0), 0);
+  const colTotal = n => L.reduce((s, l)=>s + (cell[l + '|' + n] || 0), 0);
+  const max = Math.max(1, ...Object.values(cell));
+  const td = v => `<td class="mx-cell"${v ? ` style="--a:${(0.12 + 0.6 * v / max).toFixed(2)}"` : ''}>${v || '<span class="z">·</span>'}</td>`;
+  return `<section class="bd-card"><div class="bd-head"><h4>来場：ランク</h4><span>${visits.length}組</span></div>
+    <table class="mx-table"><thead><tr><th></th>${N.map(n=>`<th>${n}</th>`).join('')}<th>計</th></tr></thead><tbody>
+    ${L.map(l=>`<tr><th>${l}</th>${N.map(n=>td(cell[l + '|' + n] || 0)).join('')}<td class="mx-total">${rowTotal(l)}</td></tr>`).join('')}
+    <tr class="mx-foot"><th>計</th>${N.map(n=>`<td class="mx-total">${colTotal(n)}</td>`).join('')}<td class="mx-total">${visits.length}</td></tr>
+    </tbody></table></section>`;
+}
+const zero = v => v ? v : '<span class="z">·</span>';
+
 async function renderAgg(){
   const content = document.getElementById('agg-content');
   content.innerHTML = '<div class="loading">集計しています…</div>';
@@ -2422,10 +2496,11 @@ async function renderAgg(){
     try{ await window.storage.refresh(); }
     catch(e){
       console.error(e);
-      document.getElementById('header-sub').textContent = e.code === 'setup_required'
-        ? '⚠ Notionの準備が必要です。「データ管理」→「Notionを準備する」を押してください'
-        : '⚠ 保存先に接続できません：' + (e.message || e);
+      document.getElementById('header-sub').textContent = '⚠ 保存先に接続できません：' + (e.message || e);
     }
+  }
+  if(currentPeriod === 'fiscal' && !document.getElementById('agg-fiscal').options.length){
+    setPeriodActive('period-fiscal'); await fillAggFiscalOptions();
   }
   const raijouAll = await getAll('raijou');
   const shiryouAll = await getAll('shiryou');
@@ -2438,219 +2513,144 @@ async function renderAgg(){
   const pendingCountAgg = shiryouPeriod.filter(s=>s.pending && !s.outofarea).length;
   const inCount = shiryou.length;
 
-  const interestCounts = {};
-  INTERESTS.forEach(i=>interestCounts[i]=0);
-  raijou.forEach(r=>{ (r.interests||[]).forEach(i=>{ if(interestCounts[i]!==undefined) interestCounts[i]++; }); });
-  const interestPairs = Object.entries(interestCounts).sort((a,b)=>b[1]-a[1]);
+  const stageCounts = {}; STAGES.forEach(s=>stageCounts[s] = 0);
+  shinchoku.forEach(p=>{ if(stageCounts[p.stage] !== undefined) stageCounts[p.stage]++; });
+  const contractRecords = shinchoku.filter(p=>p.stage === '請負契約');
+  const contractCount = contractRecords.length;
+  const totalSales = contractRecords.reduce((sum, p)=>sum + parseAmount(p.amount), 0);
+  const avgSales = contractCount ? Math.round(totalSales / contractCount) : 0;
 
   let html = '';
-  html += `<div class="cardgrid">
-    <div class="metric"><div class="num">${shiryou.length}</div><div class="lbl">資料請求件数</div><div class="sub">エリア内${inCount}／エリア外${outCount}／対応中${pendingCountAgg}（エリア外・対応中は集計に含めません）</div></div>
-    <div class="metric"><div class="num">${raijou.length}</div><div class="lbl">来場者数</div><div class="sub">反響から来場率 ${inCount?Math.round(raijou.length/inCount*1000)/10:0}%（エリア内のみで算出／参考値）</div></div>
-    ${convCardHtml(raijou, shinchoku)}
+  // ── 主要な数字 ──
+  html += `<div class="agg-kpis">
+    <div class="agg-kpi"><div class="k-lbl">資料請求</div><div class="k-num">${inCount}<small>件</small></div><div class="k-sub">エリア外 ${outCount}・対応中 ${pendingCountAgg}（集計対象外）</div></div>
+    <div class="agg-kpi"><div class="k-lbl">来場</div><div class="k-num">${raijou.length}<small>組</small></div><div class="k-sub">反響から来場率 ${fmtPct(raijou.length, inCount)}（参考値）</div></div>
+    <div class="agg-kpi accent"><div class="k-lbl">来場からの成約率</div><div class="k-num">${fmtPct(contractCount, raijou.length)}</div><div class="k-sub">請負契約 ${contractCount}件 ÷ 来場 ${raijou.length}組${CONTRACT_RATE_KPI ? `／目標${CONTRACT_RATE_KPI}%` : ''}</div></div>
+    <div class="agg-kpi"><div class="k-lbl">契約金額</div><div class="k-num sm">${yen(totalSales)}</div><div class="k-sub">平均 ${yen(avgSales)}／${contractCount}件</div></div>
   </div>`;
+
   html += convSectionHtml(raijouAll, shinchokuAll, raijou, shinchoku);
 
+  // ── 来場者・資料請求の基本集計 ──
+  const interestPairs = INTERESTS.map(i=>[i, raijou.filter(r=>(r.interests || []).includes(i)).length]).sort((a,b)=>b[1]-a[1]);
   html += `<details class="agg-group" open><summary class="agg-group-summary">📋 来場者・資料請求の基本集計</summary><div class="agg-group-body">`;
-  html += chartSectionHtml('source', '資料請求：反響先', countBy(shiryou,'source'), shiryou.length);
-  html += chartSectionHtml('media', '資料請求：知った媒体', countBy(shiryou,'media'), shiryou.length);
-  html += chartSectionHtml('shiryouLand', '資料請求：土地', countBy(shiryou,'land'), shiryou.length);
-  html += chartSectionHtml('place', '新規来場者：来場場所', countBy(raijou,'place'), raijou.length);
-  html += chartSectionHtml('staff', '新規来場者：接客担当', countBy(raijou,'staff'), raijou.length);
-  html += chartSectionHtml('trigger', '新規来場者：きっかけ', countBy(raijou,'trigger'), raijou.length);
-  html += chartSectionHtml('interest', 'アンケート興味項目（全15項目）', interestPairs, raijou.length);
-  html += chartSectionHtml('raijouLand', '来場時：土地', countBy(raijou,'land'), raijou.length);
-
-  const rankLetterPairs = ['A','B','C','D','E','不明'].map(k=>[k, raijou.filter(r=>((r.rank||'').split('-')[0]||'不明')===k).length]);
-  const rankNumberPairs = ['1','2','3','4','5','不明'].map(k=>[k, raijou.filter(r=>((r.rank||'').split('-')[1]||'不明')===k).length]);
-  html += chartSectionHtml('rankLetter', '来場時：ランク（A〜E）', rankLetterPairs, raijou.length);
-  html += chartSectionHtml('rankNumber', '来場時：ランク（1〜5）', rankNumberPairs, raijou.length);
-
-  const landyCount = raijou.filter(r=>r.landy).length;
-  html += `<div class="cardgrid">
-    <div class="metric"><div class="num">${landyCount}</div><div class="lbl">ランディ登録件数</div></div>
-  </div>`;
-
-  const fundingRecords = shinchoku.filter(p=>p.stage==='資金計画');
-  const planRecords = shinchoku.filter(p=>p.stage==='プラン');
-
-  const stageCounts = {};
-  STAGES.forEach(s=>stageCounts[s]=0);
-  shinchoku.forEach(p=>{ if(stageCounts[p.stage]!==undefined) stageCounts[p.stage]++; });
-  const contractCount = stageCounts['請負契約'];
-  const contractRate = raijou.length ? Math.round(contractCount/raijou.length*1000)/10 : 0;
-
-  const contractRecords = shinchoku.filter(p=>p.stage==='請負契約');
-  const totalSales = contractRecords.reduce((sum,p)=>sum + parseAmount(p.amount), 0);
-  const avgSales = contractCount ? Math.round(totalSales/contractCount) : 0;
-
-  html += `<div class="cardgrid">
-    <div class="metric"><div class="num">${contractCount}</div><div class="lbl">契約件数（請負契約）</div></div>
-    <div class="metric"><div class="num">${contractRate}%</div><div class="lbl">来場者数に対する契約率</div></div>
-    <div class="metric"><div class="num">¥${totalSales.toLocaleString()}</div><div class="lbl">契約金額合計</div></div>
-    <div class="metric"><div class="num">¥${avgSales.toLocaleString()}</div><div class="lbl">平均契約金額</div></div>
-  </div>`;
+  html += `<h3 class="agg-sub">資料請求 <span>${inCount}件</span></h3><div class="bd-grid">`
+    + breakdownCard('反響先', countBy(shiryou, 'source'), inCount)
+    + breakdownCard('知った媒体', countBy(shiryou, 'media'), inCount)
+    + breakdownCard('土地', countBy(shiryou, 'land'), inCount)
+    + `</div>`;
+  html += `<h3 class="agg-sub">来場者 <span>${raijou.length}組</span></h3><div class="bd-grid">`
+    + breakdownCard('きっかけ', countBy(raijou, 'trigger'), raijou.length, { unit:'組' })
+    + breakdownCard('来場場所', countBy(raijou, 'place'), raijou.length, { unit:'組' })
+    + breakdownCard('接客担当', countBy(raijou, 'staff'), raijou.length, { unit:'組' })
+    + breakdownCard('土地', countBy(raijou, 'land'), raijou.length, { unit:'組' })
+    + rankMatrixCard(raijou)
+    + breakdownCard('アンケート：興味を持った点', interestPairs, raijou.length, { unit:'組' })
+    + `</div>`;
   html += `</div></details>`;
 
+  // ── 進捗・ステージ集計 ──
   html += `<details class="agg-group" open><summary class="agg-group-summary">📈 進捗・ステージ集計</summary><div class="agg-group-body">`;
-  html += `<div class="section-title">進捗ステージ 件数</div>`;
-  html += `<div class="list-table-wrap"><table class="list-table" style="margin-bottom:16px;"><thead><tr><th>ステージ</th><th class="num-col">件数</th><th class="num-col">割合</th></tr></thead><tbody>`;
-  STAGES.forEach(st=>{
-    const v = stageCounts[st];
-    const pct = raijou.length ? Math.round(v/raijou.length*1000)/10 : 0;
-    html += `<tr><td>${st}</td><td class="num-col">${v}件</td><td class="num-col">${pct}%</td></tr>`;
-  });
-  html += `</tbody></table></div>`;
+  // ステージの流れ（来場比・前のステージからの移行率）
+  const flow = [['来場', raijou.length]].concat(STAGES.map(st=>[st, stageCounts[st]]));
+  const flowMax = Math.max(1, ...flow.map(f=>f[1]));
+  html += `<h3 class="agg-sub">ステージの流れ</h3><div class="list-table-wrap"><table class="agg-table flow"><thead><tr><th>ステージ</th><th></th><th class="n">件数</th><th class="n">来場比</th><th class="n">前のステージから</th></tr></thead><tbody>`
+    + flow.map(([st, v], i)=>`<tr${st === '請負契約' ? ' class="hl"' : ''}><td>${st}</td><td class="bd-bar"><span><i style="width:${Math.round(v / flowMax * 100)}%"></i></span></td><td class="n">${v}</td><td class="n">${i === 0 ? '' : fmtPct(v, raijou.length)}</td><td class="n">${i === 0 ? '' : fmtPct(v, flow[i - 1][1])}</td></tr>`).join('')
+    + `</tbody></table></div><p class="agg-note">※確認申請・長期ZEH・補助金は契約後の手続きのため、「前のステージから」は参考値です。</p>`;
 
-  function staffRoleTableHtml(title, pairs, total){
-    let rows = '';
-    pairs.forEach(([s,v])=>{
-      const pct = total ? Math.round(v/total*1000)/10 : 0;
-      rows += `<tr><td>${escapeHtml(s)}</td><td class="num-col">${v}件</td><td class="num-col">${pct}%</td></tr>`;
-    });
-    if(!rows) rows = `<tr><td colspan="3" style="color:var(--ink-faint);">データがありません</td></tr>`;
-    return `<div class="section-title" style="font-size:14px; margin-top:14px;">${title}</div>
-      <div class="list-table-wrap"><table class="list-table" style="margin-bottom:16px;"><thead><tr><th>担当</th><th class="num-col">件数</th><th class="num-col">割合</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  }
-  html += staffRoleTableHtml('資金計画：アポ担当内訳', countBy(fundingRecords,'appointmentStaff'), fundingRecords.length);
-  html += staffRoleTableHtml('資金計画：実行担当内訳', countBy(fundingRecords,'executionStaff'), fundingRecords.length);
-  html += staffRoleTableHtml('プラン：アポ担当内訳', countBy(planRecords,'appointmentStaff'), planRecords.length);
-  html += staffRoleTableHtml('プラン：実行担当内訳', countBy(planRecords,'executionStaff'), planRecords.length);
+  // 担当者（期間内に動きのある人だけ。元スタッフも表示）
+  const staffSet = new Set();
+  raijou.forEach(r=>r.staff && staffSet.add(r.staff));
+  shinchoku.forEach(p=>{ [p.staff, p.appointmentStaff, p.executionStaff].forEach(x=>x && staffSet.add(x)); });
+  const order = s => { const i = STAFF.indexOf(s); return i < 0 ? 50 : i; };
+  const staffList = Array.from(staffSet).sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
+  const visitsBy = s => raijou.filter(r=>r.staff === s).length;
+  const cnt = (stage, s, field) => shinchoku.filter(p=>p.stage === stage && p[field || 'staff'] === s).length;
+  const salesBy = s => contractRecords.filter(p=>p.staff === s).reduce((sum, p)=>sum + parseAmount(p.amount), 0);
+  const cols = [
+    { h:'接客', f: s=>visitsBy(s) },
+    { h:'資金計画<br><small>アポ</small>', f: s=>cnt('資金計画', s, 'appointmentStaff') },
+    { h:'資金計画<br><small>実行</small>', f: s=>cnt('資金計画', s, 'executionStaff') },
+    { h:'敷地調査', f: s=>cnt('敷地調査', s) },
+    { h:'プラン<br><small>アポ</small>', f: s=>cnt('プラン', s, 'appointmentStaff') },
+    { h:'プラン<br><small>実行</small>', f: s=>cnt('プラン', s, 'executionStaff') },
+    { h:'見積', f: s=>cnt('見積', s) },
+    { h:'建築申込', f: s=>cnt('建築申込', s) },
+    { h:'請負契約', f: s=>cnt('請負契約', s), hl:true },
+    { h:'確認申請', f: s=>cnt('確認申請', s) },
+    { h:'長期・ZEH', f: s=>cnt('長期・ZEH', s) },
+    { h:'補助金', f: s=>cnt('補助金', s) },
+  ];
+  const totals = cols.map(c=>staffList.reduce((sum, s)=>sum + c.f(s), 0));
+  html += `<h3 class="agg-sub">担当者別 件数</h3>`;
+  if(!staffList.length) html += `<p class="bd-empty">データがありません</p>`;
+  else html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>${cols.map(c=>`<th class="n${c.hl ? ' hl' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>`
+    + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map(c=>`<td class="n${c.hl ? ' hl' : ''}">${zero(c.f(s))}</td>`).join('')}</tr>`).join('')
+    + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${t}</td>`).join('')}</tr></tbody></table></div>`;
 
-  const staffStage = {};
-  STAFF.forEach(s=>{ staffStage[s] = {visits:0, contracts:0, sales:0}; });
-  raijou.forEach(r=>{ if(staffStage[r.staff]) staffStage[r.staff].visits++; });
-  contractRecords.forEach(p=>{ if(staffStage[p.staff]){ staffStage[p.staff].contracts++; staffStage[p.staff].sales += parseAmount(p.amount); } });
-  const mainStaffList = ['社長','北爪','星野','山﨑'];
-  const otherStaffList = STAFF.filter(s=>!mainStaffList.includes(s));
-  html += `<div class="section-title">担当者別 契約率・契約金額</div>`;
-  html += `<div class="list-table-wrap"><table class="list-table" style="margin-bottom:16px;"><thead><tr><th>担当</th><th class="num-col">契約数</th><th class="num-col">契約率</th><th class="num-col">契約金額合計</th></tr></thead><tbody>`;
-  mainStaffList.forEach(s=>{
-    const st = staffStage[s];
-    const rate = st.visits ? Math.round(st.contracts/st.visits*1000)/10 : 0;
-    html += `<tr><td>${s}</td><td class="num-col">${st.contracts}件</td><td class="num-col">${rate}%</td><td class="num-col">¥${st.sales.toLocaleString()}</td></tr>`;
-  });
-  const otherAgg = otherStaffList.reduce((acc,s)=>{
-    const st = staffStage[s];
-    acc.visits += st.visits; acc.contracts += st.contracts; acc.sales += st.sales;
-    return acc;
-  }, {visits:0, contracts:0, sales:0});
-  const otherRate = otherAgg.visits ? Math.round(otherAgg.contracts/otherAgg.visits*1000)/10 : 0;
-  html += `<tr><td>その他</td><td class="num-col">${otherAgg.contracts}件</td><td class="num-col">${otherRate}%</td><td class="num-col">¥${otherAgg.sales.toLocaleString()}</td></tr>`;
-  html += `</tbody></table></div>`;
-
-  // ===== 担当者別 アポ成功率／ステージ実績／実績サマリー =====
+  // 担当者別 率・売上・個人目標
   const staffSalesTargets = await getStaffSalesTargets();
-  const stageBy = (stage, staff, field) => shinchoku.filter(p=>p.stage===stage && p[field||'staff']===staff).length;
-  const visitsByStaff = (staff) => raijou.filter(r=>r.staff===staff).length;
-
-  html += `<div class="section-title" style="margin-top:20px;">担当者別 アポ成功率<span style="font-size:11px; font-weight:400; color:var(--ink-soft);">（アポ担当件数 ÷ 来場時接客担当件数）</span></div>`;
-  html += `<div class="list-table-wrap"><table class="list-table"><thead><tr><th>担当</th><th class="num-col">資金計画apo</th><th class="num-col">プランapo</th></tr></thead><tbody>`;
-  STAFF.forEach(s=>{
-    const visits = visitsByStaff(s);
-    const fundingApo = stageBy('資金計画', s, 'appointmentStaff');
-    const planApo = stageBy('プラン', s, 'appointmentStaff');
-    html += `<tr><td>${s}</td><td class="num-col">${pct(fundingApo, visits) || '—'}</td><td class="num-col">${pct(planApo, visits) || '—'}</td></tr>`;
-  });
-  html += `</tbody></table></div>`;
-
-  const otherStages = [{key:'敷地調査', label:'敷地調査'}, {key:'確認申請', label:'確認申請'}, {key:'長期・ZEH', label:'長期・ZEH'}, {key:'補助金', label:'補助金'}];
-  html += `<div class="section-title" style="margin-top:14px;">担当者別 ステージ実績<span style="font-size:11px; font-weight:400; color:var(--ink-soft);">（件数・来場時接客担当に対する割合）</span></div>`;
-  html += `<div class="list-table-wrap"><table class="list-table"><thead><tr><th>担当</th>${otherStages.map(s=>`<th class="num-col">${s.label}</th>`).join('')}</tr></thead><tbody>`;
-  const otherStageTotals = {}; otherStages.forEach(s=>otherStageTotals[s.key]=0);
-  STAFF.forEach(s=>{
-    const visits = visitsByStaff(s);
-    html += `<tr><td>${s}</td>${otherStages.map(st=>{
-      const v = stageBy(st.key, s);
-      otherStageTotals[st.key] += v;
-      return `<td class="num-col">${v}件<br><span style="font-size:11px; color:var(--ink-soft);">${pct(v, visits) || '—'}</span></td>`;
-    }).join('')}</tr>`;
-  });
-  html += `<tr style="font-weight:600;"><td>合計</td>${otherStages.map(st=>`<td class="num-col">${otherStageTotals[st.key]}件</td>`).join('')}</tr>`;
-  html += `</tbody></table></div>`;
-
-  html += `<div class="section-title" style="margin-top:14px;">担当者別実績サマリー<span style="font-size:11px; font-weight:400; color:var(--ink-soft);">（プラン数は実行担当、申込数・契約数は各案件の担当で集計）</span></div>`;
-  html += `<div class="list-table-wrap"><table class="list-table"><thead><tr><th>担当</th><th class="num-col">プラン数</th><th class="num-col">申込数</th><th class="num-col">申込率</th><th class="num-col">契約数</th><th class="num-col">契約率</th><th class="num-col">担当別売上</th><th class="num-col">個人目標</th><th class="num-col">目標に対しての割合</th></tr></thead><tbody>`;
-  let staffTotalSales = 0, staffTotalTarget = 0;
-  STAFF.forEach(s=>{
-    const planCount = stageBy('プラン', s, 'executionStaff');
-    const applyCount = stageBy('建築申込', s);
-    const contractCountS = stageBy('請負契約', s);
-    const applyRate = pct(applyCount, planCount);
-    const contractRate = pct(contractCountS, applyCount);
-    const sales = shinchoku.filter(p=>p.stage==='請負契約' && p.staff===s).reduce((sum,p)=>sum+parseAmount(p.amount), 0);
-    const target = staffSalesTargets[s];
-    staffTotalSales += sales;
-    if(target) staffTotalTarget += Number(target);
-    html += `<tr><td>${s}</td><td class="num-col">${planCount}件</td><td class="num-col">${applyCount}件</td><td class="num-col">${applyRate || '—'}</td><td class="num-col">${contractCountS}件</td><td class="num-col">${contractRate || '—'}</td><td class="num-col">¥${sales.toLocaleString()}</td><td class="num-col">${targetInputHtml('staffSales_'+s, target)}</td><td class="num-col">${pct(sales, target) || '—'}</td></tr>`;
-  });
-  html += `<tr style="font-weight:600;"><td>合計</td><td colspan="5"></td><td class="num-col">¥${staffTotalSales.toLocaleString()}</td><td class="num-col">¥${staffTotalTarget.toLocaleString()}</td><td class="num-col">${pct(staffTotalSales, staffTotalTarget) || '—'}</td></tr>`;
-  html += `</tbody></table></div>`;
-
+  let tSales = 0, tTarget = 0;
+  html += `<h3 class="agg-sub">担当者別 率・売上</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>
+    <th class="n">資金計画<br><small>アポ率</small></th><th class="n">プラン<br><small>アポ率</small></th><th class="n">申込率<br><small>申込÷プラン実行</small></th><th class="n">契約率<br><small>契約÷申込</small></th><th class="n">来場からの<br><small>成約率</small></th>
+    <th class="n">売上</th><th class="n">個人目標</th><th class="n">達成率</th></tr></thead><tbody>`
+    + staffList.concat(STAFF.filter(s=>!staffSet.has(s) && staffSalesTargets[s])).map(s=>{
+      const v = visitsBy(s), plan = cnt('プラン', s, 'executionStaff'), apply = cnt('建築申込', s), con = cnt('請負契約', s);
+      const sales = salesBy(s), target = staffSalesTargets[s];
+      tSales += sales; if(target) tTarget += Number(target);
+      const p = (a, b) => b ? fmtPct(a, b) : '<span class="z">·</span>';
+      return `<tr><td>${escapeHtml(s)}</td><td class="n">${p(cnt('資金計画', s, 'appointmentStaff'), v)}</td><td class="n">${p(cnt('プラン', s, 'appointmentStaff'), v)}</td>
+        <td class="n">${p(apply, plan)}</td><td class="n">${p(con, apply)}</td><td class="n">${p(con, v)}</td>
+        <td class="n">${sales ? yen(sales) : '<span class="z">·</span>'}</td><td class="n">${targetInputHtml('staffSales_' + s, target)}</td><td class="n">${target ? fmtPct(sales, target) : '<span class="z">·</span>'}</td></tr>`;
+    }).join('')
+    + `<tr class="total"><td>合計</td><td colspan="5"></td><td class="n">${yen(tSales)}</td><td class="n">${tTarget ? yen(tTarget) : ''}</td><td class="n">${tTarget ? fmtPct(tSales, tTarget) : ''}</td></tr></tbody></table></div>`
+    + `<p class="agg-note">※アポ率＝アポ件数÷来場時の接客件数。申込・契約・売上は各案件の担当で集計。個人目標は数字を入れると保存されます。</p>`;
   html += `</div></details>`;
 
-  // ===== 目標達成率（ファネル分析） ※エリア外は除き、エリア内のみを集計 =====
+  // ── 目標達成率（ファネル） ──
   const funnelTargets = await getFunnelTargets();
-  const shiryouInArea = shiryou.filter(s=>!s.outofarea && !s.pending);
-  const shiryouNameSet2 = new Set(shiryouInArea.map(s=>normalizeName(s.name)));
-  const shiryouById2 = {}; shiryouInArea.forEach(s=>shiryouById2[s.id]=s);
+  const shiryouNameSet2 = new Set(shiryou.map(s=>normalizeName(s.name)));
+  const shiryouById2 = {}; shiryou.forEach(s=>shiryouById2[s.id] = s);
   const raijouWithShiryou = raijou.filter(r=>shiryouNameSet2.has(normalizeName(r.name)) || (r.linkedShiryouId && shiryouById2[r.linkedShiryouId]));
-
   const funnelStages = [
-    {key:'response', label:'反響', actual: shiryouInArea.length},
-    {key:'visit', label:'来場', actual: raijou.length},
-    {key:'funding', label:'資金計画', actual: stageCounts['資金計画']},
-    {key:'land', label:'敷地調査', actual: stageCounts['敷地調査']},
-    {key:'plan', label:'プラン', actual: stageCounts['プラン']},
-    {key:'quote', label:'見積', actual: stageCounts['見積']},
-    {key:'application', label:'建築申込', actual: stageCounts['建築申込']},
-    {key:'contract', label:'請負契約', actual: contractCount}
+    {key:'response', label:'反響', actual: inCount}, {key:'visit', label:'来場', actual: raijou.length},
+    {key:'funding', label:'資金計画', actual: stageCounts['資金計画']}, {key:'land', label:'敷地調査', actual: stageCounts['敷地調査']},
+    {key:'plan', label:'プラン', actual: stageCounts['プラン']}, {key:'quote', label:'見積', actual: stageCounts['見積']},
+    {key:'application', label:'建築申込', actual: stageCounts['建築申込']}, {key:'contract', label:'請負契約', actual: contractCount}
   ];
-  const responseActual = funnelStages[0].actual;
-
-  html += `<details class="agg-group" open><summary class="agg-group-summary">🎯 目標達成率（ファネル分析）</summary><div class="agg-group-body">`;
-  html += `<div class="section-title" style="margin-top:20px;">目標達成率（ファネル分析）<span style="font-size:11px; font-weight:400; color:var(--ink-soft);">（エリア内の資料請求のみで集計）</span></div>`;
-  html += `<div class="list-table-wrap"><table class="list-table"><thead><tr><th>流れ</th>${funnelStages.map(s=>`<th class="num-col">${s.label}</th>`).join('')}</tr></thead><tbody>`;
-  html += `<tr><td>目標</td>${funnelStages.map(s=>`<td class="num-col">${targetInputHtml(s.key, funnelTargets[s.key])}</td>`).join('')}</tr>`;
-  html += `<tr><td>実績</td>${funnelStages.map(s=>`<td class="num-col">${s.actual}</td>`).join('')}</tr>`;
-  html += `<tr><td>目標に対しての割合</td>${funnelStages.map(s=>`<td class="num-col">${pct(s.actual, funnelTargets[s.key])}</td>`).join('')}</tr>`;
-  html += `<tr><td>反響数に対しての割合</td>${funnelStages.map((s,i)=>`<td class="num-col">${i===0 ? '' : pct(s.actual, responseActual)}</td>`).join('')}</tr>`;
-  html += `</tbody></table></div>`;
-
   const transitions = [
-    {key:'responseToVisit', label:'反響から来場', actual: pctNum(funnelStages[1].actual, funnelStages[0].actual)},
-    {key:'visitToFunding', label:'来場から資金', actual: pctNum(funnelStages[2].actual, funnelStages[1].actual)},
-    {key:'fundingToLand', label:'資金から敷測', actual: pctNum(funnelStages[3].actual, funnelStages[2].actual)},
-    {key:'landToPlan', label:'敷測からplan', actual: pctNum(funnelStages[4].actual, funnelStages[3].actual)},
-    {key:'planToContract', label:'planから契約', actual: pctNum(funnelStages[7].actual, funnelStages[4].actual)}
-  ];
-  html += `<div class="list-table-wrap" style="margin-top:14px;"><table class="list-table"><thead><tr><th>流れ</th>${transitions.map(t=>`<th class="num-col">${t.label}</th>`).join('')}</tr></thead><tbody>`;
-  html += `<tr><td>目標</td>${transitions.map(t=>`<td class="num-col">${targetInputHtml(t.key, funnelTargets[t.key])}<span style="font-size:11px; color:var(--ink-faint);">%</span></td>`).join('')}</tr>`;
-  html += `<tr><td>実績</td>${transitions.map(t=>`<td class="num-col">${t.actual!=null?t.actual+'%':''}</td>`).join('')}</tr>`;
-  html += `<tr><td>目標に対しての割合</td>${transitions.map(t=>`<td class="num-col">${(t.actual!=null && funnelTargets[t.key]) ? pct(t.actual, funnelTargets[t.key]) : ''}</td>`).join('')}</tr>`;
-  html += `</tbody></table></div>`;
+    {key:'responseToVisit', label:'反響→来場', a:1, b:0}, {key:'visitToFunding', label:'来場→資金', a:2, b:1},
+    {key:'fundingToLand', label:'資金→敷測', a:3, b:2}, {key:'landToPlan', label:'敷測→プラン', a:4, b:3}, {key:'planToContract', label:'プラン→契約', a:7, b:4}
+  ].map(t=>Object.assign(t, { actual: pctNum(funnelStages[t.a].actual, funnelStages[t.b].actual) }));
+  html += `<details class="agg-group" open><summary class="agg-group-summary">🎯 目標達成率（ファネル）</summary><div class="agg-group-body">`;
+  html += `<h3 class="agg-sub">件数 <span>エリア内の資料請求のみ</span></h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${funnelStages.map(s=>`<th class="n">${s.label}</th>`).join('')}</tr></thead><tbody>
+    <tr><td>目標</td>${funnelStages.map(s=>`<td class="n">${targetInputHtml(s.key, funnelTargets[s.key])}</td>`).join('')}</tr>
+    <tr><td>実績</td>${funnelStages.map(s=>`<td class="n"><b>${s.actual}</b></td>`).join('')}</tr>
+    <tr><td>達成率</td>${funnelStages.map(s=>`<td class="n">${pct(s.actual, funnelTargets[s.key]) || '<span class="z">·</span>'}</td>`).join('')}</tr>
+    <tr><td>反響比</td>${funnelStages.map((s, i)=>`<td class="n">${i === 0 ? '' : (pct(s.actual, inCount) || '<span class="z">·</span>')}</td>`).join('')}</tr>
+    </tbody></table></div>`;
+  html += `<h3 class="agg-sub">移行率</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${transitions.map(t=>`<th class="n">${t.label}</th>`).join('')}</tr></thead><tbody>
+    <tr><td>目標</td>${transitions.map(t=>`<td class="n">${targetInputHtml(t.key, funnelTargets[t.key])}<small>%</small></td>`).join('')}</tr>
+    <tr><td>実績</td>${transitions.map(t=>`<td class="n"><b>${t.actual != null ? t.actual + '%' : '―'}</b></td>`).join('')}</tr>
+    <tr><td>達成率</td>${transitions.map(t=>`<td class="n">${(t.actual != null && funnelTargets[t.key]) ? pct(t.actual, funnelTargets[t.key]) : '<span class="z">·</span>'}</td>`).join('')}</tr>
+    </tbody></table></div>`;
   html += `</div></details>`;
 
-  html += `<details class="agg-group" open><summary class="agg-group-summary">🤝 紹介・資料請求率</summary><div class="agg-group-body">`;
-  const referredVisitors = raijou.filter(r=>r.trigger==='紹介');
+  // ── 紹介・資料請求率（1つの表に） ──
+  const referredVisitors = raijou.filter(r=>r.trigger === '紹介');
   const referredNameSet = new Set(referredVisitors.map(r=>normalizeName(r.name)));
   const contractReferrals = contractRecords.filter(c=>referredNameSet.has(normalizeName(c.name)));
-
-  function metricRowTableHtml(title, headers, values){
-    return `<div class="section-title" style="font-size:14px; margin-top:16px;">${title}</div>
-      <div class="list-table-wrap"><table class="list-table"><thead><tr>${headers.map(h=>`<th class="num-col">${h}</th>`).join('')}</tr></thead>
-      <tbody><tr>${values.map(v=>`<td class="num-col">${v}</td>`).join('')}</tr></tbody></table></div>`;
-  }
-  html += metricRowTableHtml('来場者数からの紹介率', ['新規来場者数','新規来場紹介数','紹介率'],
-    [raijou.length, referredVisitors.length, pct(referredVisitors.length, raijou.length)]);
-  html += metricRowTableHtml('紹介者からの成約率', ['新規来場の紹介数','契約の紹介数','成約率'],
-    [referredVisitors.length, contractReferrals.length, pct(contractReferrals.length, referredVisitors.length)]);
-  html += metricRowTableHtml('契約のうち紹介率', ['契約数','契約の紹介数','紹介率'],
-    [contractCount, contractReferrals.length, pct(contractReferrals.length, contractCount)]);
-  html += metricRowTableHtml('新規来場者数に対する資料請求率', ['新規来場者数','資料請求数','資料請求率'],
-    [raijou.length, raijouWithShiryou.length, pct(raijouWithShiryou.length, raijou.length)]);
-
-  html += `<p style="font-size:11.5px; color:var(--ink-faint); margin-top:16px;">※進捗は「進捗」タブから入力した内容を集計しています。契約金額は「進捗」タブの請負契約の金額欄をもとに計算しています。資金計画・敷地調査などステージ間の遷移率はExcel台帳の方がより詳細です。※資料請求（反響）の集計は「エリア外」を除いたエリア内の件数を基準にしています。</p>`;
+  const rates = [
+    ['来場者のうち紹介', referredVisitors.length, raijou.length, '組'],
+    ['紹介来場からの成約', contractReferrals.length, referredVisitors.length, '件'],
+    ['契約のうち紹介', contractReferrals.length, contractCount, '件'],
+    ['来場者のうち資料請求あり', raijouWithShiryou.length, raijou.length, '組'],
+  ];
+  html += `<details class="agg-group" open><summary class="agg-group-summary">🤝 紹介・資料請求率</summary><div class="agg-group-body">`;
+  html += `<div class="list-table-wrap"><table class="agg-table"><thead><tr><th>指標</th><th class="n">該当</th><th class="n">母数</th><th class="n">率</th></tr></thead><tbody>`
+    + rates.map(([l, a, b, u])=>`<tr><td>${l}</td><td class="n">${a}</td><td class="n">${b}</td><td class="n"><b>${fmtPct(a, b)}</b></td></tr>`).join('')
+    + `</tbody></table></div>`;
+  html += `<p class="agg-note">※資料請求の集計は「エリア外」「対応中」を除いた件数が基準です。契約金額は進捗の請負契約の金額欄から計算しています。</p>`;
   html += `</div></details>`;
 
   content.innerHTML = html;
