@@ -96,6 +96,8 @@
   .period-switch{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 12px;}
   .period-switch label{font-size:13px; font-weight:600; color:var(--ink); margin:0;}
   .period-switch select{width:auto; min-width:220px; margin:0;}
+  .dash-range{display:inline-flex; align-items:center; gap:6px;}
+  .dash-range input{width:auto; margin:0; padding:7px 9px;}
   .period-switch .hint{font-size:12px; color:var(--ink-faint);}
   .tag-auto{display:inline-block; margin-left:5px; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:600;
     color:var(--wood-dark); background:var(--wood-50); border:1px solid var(--wood-200); vertical-align:1px; white-space:nowrap;}
@@ -425,6 +427,9 @@
       <div class="period-switch">
         <label for="dash-period">表示する期</label>
         <select id="dash-period"></select>
+        <span id="dash-range" class="dash-range hidden">
+          <input type="date" id="dash-range-start" aria-label="開始日"><span>〜</span><input type="date" id="dash-range-end" aria-label="終了日">
+        </span>
         <span class="hint">氏名で検索したときは、全期間から探します</span>
       </div>
       <div class="cardgrid dash-tabs" role="tablist" aria-label="表示する一覧">
@@ -1599,7 +1604,7 @@ async function renderDashboardInner(){
   document.getElementById('m-shinchoku-sub').textContent = pLabel;
 
   const now = new Date();
-  const thisMonthCount = raijou.filter(r=>{
+  const thisMonthCount = raijouAll.filter(r=>{
     if(!r.date) return false;
     const d = new Date(r.date);
     return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
@@ -1820,14 +1825,39 @@ function periodRangeText(n){
 function currentPeriodNo(){ const d = new Date(); return periodOfDate(formatDateLocal(d)); }
 let dashPeriod = null; // null＝まだ選んでいない（今期を表示）
 function selectedDashPeriod(){ return dashPeriod === null ? String(currentPeriodNo()) : dashPeriod; }
+// 日にちで区切る（今月・先月・期間を指定）
+let dashRangeStart = '', dashRangeEnd = '';
+function dashMonthRange(offset){
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + offset);
+  const start = formatDateLocal(d);
+  const e = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return [start, formatDateLocal(e)];
+}
+function dashRange(){
+  const sel = selectedDashPeriod();
+  if(sel === 'thismonth') return dashMonthRange(0);
+  if(sel === 'lastmonth') return dashMonthRange(-1);
+  if(sel === 'custom') return [dashRangeStart, dashRangeEnd];
+  return null;
+}
 function inDashPeriod(ymd){
   const sel = selectedDashPeriod();
   if(sel === 'all') return true;
+  const r = dashRange();
+  if(r){ if(!ymd) return false; return (!r[0] || ymd >= r[0]) && (!r[1] || ymd <= r[1]); }
   return String(periodOfDate(ymd)) === sel;
 }
 function dashPeriodLabelShort(){
   const sel = selectedDashPeriod();
-  return sel === 'all' ? '全期間' : `第${sel}期` + (Number(sel) === currentPeriodNo() ? '（今期）' : '');
+  if(sel === 'all') return '全期間';
+  const r = dashRange();
+  if(r){
+    const f = d => d ? `${Number(d.slice(5,7))}/${Number(d.slice(8,10))}` : '';
+    if(sel === 'thismonth') return `今月（${f(r[0])}〜${f(r[1])}）`;
+    if(sel === 'lastmonth') return `先月（${f(r[0])}〜${f(r[1])}）`;
+    return `${f(r[0]) || '最初'}〜${f(r[1]) || '最後'}`;
+  }
+  return `第${sel}期` + (Number(sel) === currentPeriodNo() ? '（今期）' : '');
 }
 function buildDashPeriodOptions(lists){
   const sel = document.getElementById('dash-period'); if(!sel) return;
@@ -1836,13 +1866,30 @@ function buildDashPeriodOptions(lists){
   const nums = Array.from(set).filter(n=>n>=41 && n<=currentPeriodNo()+1).sort((a,b)=>b-a);
   const cur = currentPeriodNo();
   sel.innerHTML = nums.map(n=>`<option value="${n}">第${n}期（${periodRangeText(n)}）${n===cur?'　今期':''}</option>`).join('')
-    + '<option value="all">全期間</option>';
+    + '<option value="all">全期間</option>'
+    + '<optgroup label="日にちで区切る"><option value="thismonth">今月</option><option value="lastmonth">先月</option><option value="custom">期間を指定…</option></optgroup>';
   sel.value = selectedDashPeriod();
+  document.getElementById('dash-range').classList.toggle('hidden', selectedDashPeriod() !== 'custom');
 }
 document.getElementById('dash-period').addEventListener('change', (e)=>{
   dashPeriod = e.target.value;
+  if(dashPeriod === 'custom' && !dashRangeStart && !dashRangeEnd){
+    [dashRangeStart] = dashMonthRange(0); dashRangeEnd = formatDateLocal(new Date());
+    document.getElementById('dash-range-start').value = dashRangeStart;
+    document.getElementById('dash-range-end').value = dashRangeEnd;
+  }
+  document.getElementById('dash-range').classList.toggle('hidden', dashPeriod !== 'custom');
   renderDashboard();
 });
+['dash-range-start','dash-range-end'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>{
+  dashRangeStart = document.getElementById('dash-range-start').value;
+  dashRangeEnd = document.getElementById('dash-range-end').value;
+  if(dashRangeStart && dashRangeEnd && dashRangeStart > dashRangeEnd){
+    [dashRangeStart, dashRangeEnd] = [dashRangeEnd, dashRangeStart];
+    document.getElementById('dash-range-start').value = dashRangeStart; document.getElementById('dash-range-end').value = dashRangeEnd;
+  }
+  renderDashboard();
+}));
 
 
 // ===== 期比較（Excelの「データ（期集計）」「データ（3か月集計）」と同じ形を、データから自動で作る） =====
@@ -2209,7 +2256,7 @@ async function renderDashStackedList(kind){
   else if(kind==='shiryou') wrap = buildShiryouTableWrap(filtered);
   else wrap = buildShinchokuMonthTable(filtered);
   addMonthGroups(wrap, filtered, kind);
-  if(kind==='raijou' && !q && selectedDashPeriod() !== 'all') content.appendChild(buildVisitKpiStrip(filtered));
+  if(kind==='raijou' && !q && /^\d+$/.test(selectedDashPeriod())) content.appendChild(buildVisitKpiStrip(filtered));
   content.appendChild(wrap);
 }
 document.getElementById('dash-shiryou-search').addEventListener('input', ()=>renderDashStackedList('shiryou'));
