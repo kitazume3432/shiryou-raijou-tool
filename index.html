@@ -2075,7 +2075,7 @@ async function buildRaijouTableWrap(filtered){
   const wrap = document.createElement('div'); wrap.className = 'list-table-wrap';
   const table = document.createElement('table'); table.className = 'list-table grid-lines';
   table.innerHTML = `<thead><tr>
-    <th>予約日</th><th>予約方法</th><th>来場日</th><th>名前</th><th>現住所</th><th>来場場所</th><th>担当</th><th>土地</th><th>ランク</th><th>きっかけ</th><th>お礼</th><th>資料請求</th><th></th>
+    <th>来場日</th><th>名前</th><th>現住所</th><th>来場場所</th><th>担当</th><th>土地</th><th>ランク</th><th>きっかけ</th><th>お礼</th><th>資料請求</th><th></th>
   </tr></thead>`;
   const tbody = document.createElement('tbody');
   filtered.forEach(it=>{
@@ -2084,8 +2084,6 @@ async function buildRaijouTableWrap(filtered){
     const hasShiryou = shiryouNameSet.has(key) || !!linked;
     const tr = document.createElement('tr'); tr.className = 'row-clickable'; tr.title = 'クリックして編集';
     tr.innerHTML = `
-      <td>${escapeHtml(it.reservationBookedDate)}</td>
-      <td>${escapeHtml(it.reservationMethod)}</td>
       <td>${escapeHtml(it.date)}</td>
       <td>${escapeHtml(it.name)}</td>
       <td class="wrap">${escapeHtml(trimAddressToTown(it.address))}</td>
