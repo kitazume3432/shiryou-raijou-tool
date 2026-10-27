@@ -140,6 +140,12 @@
   .m-stage b{color:var(--wood-800); font-size:15px; font-variant-numeric:tabular-nums;}
   .m-stage.contract{border-color:var(--wood); color:var(--wood-dark);}
   .stage-tag{white-space:nowrap;}
+  .seg{display:inline-flex; background:var(--wood-50); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px;}
+  .seg button{font:inherit; font-size:12.5px; font-weight:600; color:var(--ink-soft); background:none; border:none; border-radius:7px; padding:6px 12px; cursor:pointer; margin:0;}
+  .seg button.active{background:var(--wood); color:#fff;}
+  .seg button:focus-visible{outline:2px solid var(--wood); outline-offset:1px;}
+  #dash-shinchoku-content .agg-group{margin-bottom:10px;}
+  #dash-shinchoku-content .agg-group-summary{padding:10px 14px; font-size:14px;}
   .list-table tr.row-now td{background:var(--wood-50) !important; font-weight:600;}
   .list-table tr.stage-row td{background:var(--card) !important; padding:7px 12px 6px 22px; border-top:1px solid var(--wood-100);}
   .list-table tr.stage-row .stage-tag{font-size:12px; font-weight:700;}
@@ -481,6 +487,10 @@
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px;">
       <div class="section-title" style="margin:0;">進捗一覧</div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <div class="seg" role="group" aria-label="進捗の表示">
+          <button type="button" id="sv-month" class="active">月ごと</button>
+          <button type="button" id="sv-stage">項目ごと</button>
+        </div>
         <button type="button" id="dash-add-shinchoku-btn" class="btn-primary" style="margin-top:0; padding:9px 16px; font-size:13px; white-space:nowrap;">＋進捗を入力</button>
       </div>
     </div>
@@ -1865,6 +1875,18 @@ function buildVisitKpiStrip(items){
   return box;
 }
 
+// 進捗一覧の表示：月ごと／項目ごと（端末ごとに記憶）
+let shinchokuView = (()=>{ try{ return localStorage.getItem('shinchoku-view') || 'month'; }catch(e){ return 'month'; } })();
+function setShinchokuView(v){
+  shinchokuView = v;
+  try{ localStorage.setItem('shinchoku-view', v); }catch(e){}
+  document.getElementById('sv-month').classList.toggle('active', v === 'month');
+  document.getElementById('sv-stage').classList.toggle('active', v === 'stage');
+}
+document.getElementById('sv-month').addEventListener('click', ()=>{ setShinchokuView('month'); renderDashStackedList('shinchoku'); });
+document.getElementById('sv-stage').addEventListener('click', ()=>{ setShinchokuView('stage'); renderDashStackedList('shinchoku'); });
+setShinchokuView(shinchokuView);
+
 // ===== ホームの一覧の切り替え（上の件数カードを押すと、その一覧だけを表示） =====
 let dashSec = (()=>{ try{ return localStorage.getItem('dash-sec') || 'shiryou'; }catch(e){ return 'shiryou'; } })();
 function showDashSection(sec){
@@ -2320,8 +2342,13 @@ async function renderDashStackedList(kind){
   let wrap;
   if(kind==='raijou') wrap = await buildRaijouTableWrap(filtered);
   else if(kind==='shiryou') wrap = buildShiryouTableWrap(filtered);
+  else if(shinchokuView === 'stage'){
+    // 項目ごと：資金計画・敷地調査…ごとの表（各ステージは日付順、番号つき）
+    wrap = buildShinchokuTableWrap(filtered.slice().sort((a,b)=>(a.date?0:1)-(b.date?0:1) || (a.date||'').localeCompare(b.date||'')));
+    wrap.querySelectorAll('table').forEach(t=>addNumberColumn(t));
+  }
   else wrap = buildShinchokuMonthTable(filtered);
-  addMonthGroups(wrap, filtered, kind);
+  if(!(kind === 'shinchoku' && shinchokuView === 'stage')) addMonthGroups(wrap, filtered, kind);
   if(!q && /^\d+$/.test(selectedDashPeriod())){
     if(kind==='raijou') content.appendChild(buildVisitKpiStrip(filtered));
     else if(kind==='shiryou') content.appendChild(buildCountStrip(filtered, 'shiryou'));
