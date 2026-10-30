@@ -103,6 +103,7 @@
     color:var(--wood-dark); background:var(--wood-50); border:1px solid var(--wood-200); vertical-align:1px; white-space:nowrap;}
   .notice-box{background:var(--card); border:1px solid var(--wood-200); border-left:4px solid var(--wood); border-radius:12px;
     padding:12px 14px; margin-bottom:14px; font-size:13px; color:var(--ink);}
+  .notice-matched{font-size:12px; color:var(--ink-faint); margin:-4px 0 12px;}
   .notice-box.warn{border-left-color:var(--danger); background:#fdf6f4;}
   .notice-list{list-style:none; padding:0; margin:8px 0 0;}
   .notice-list li{display:flex; align-items:center; gap:10px; padding:5px 0; border-top:1px dotted var(--line); flex-wrap:wrap;}
@@ -2267,8 +2268,10 @@ async function renderNotices(){
     if(hit){ used.add(hit.id); return false; }
     return true;
   });
-  if(!pending.length){ box.innerHTML = html; bindNoticeButtons(box); return; }
-  box.innerHTML = html + `<div class="notice-box warn">
+  const matched = items.filter(n=>!pending.includes(n));
+  const matchedHtml = matched.length ? `<p class="notice-matched">SUUMOの通知のうち ${matched.length}件（${matched.map(n=>escapeHtml((n.date||'').slice(5).replace('-','/') + (n.time ? ' ' + n.time : ''))).join('、')}）は、同じ日か翌日にSUUMOの資料請求が登録されているため、対応済みとしています。</p>` : '';
+  if(!pending.length){ box.innerHTML = html + matchedHtml; bindNoticeButtons(box); return; }
+  box.innerHTML = html + matchedHtml + `<div class="notice-box warn">
     <b>SUUMOから資料請求が ${pending.length}件 届いていて、まだツールに登録されていません</b><br>
     お客様の情報は <b>KASIKA</b> に自動で登録されています。KASIKAで氏名・住所などを確認し、「このお客様を入力」から登録してください。
     同じ日のSUUMOの資料請求を登録すると、このお知らせは自動で消えます。
