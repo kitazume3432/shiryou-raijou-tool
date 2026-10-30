@@ -2251,7 +2251,8 @@ async function renderNotices(){
   if(unparsed.length){
     html += `<div class="notice-box warn"><b>自動で読み取れなかった反響メールが ${unparsed.length}件 あります</b><br>
       メールの内容を見て、資料請求・来場の入力画面から手で登録してください。登録したら「確認済みにする」を押してください。
-      <ul class="notice-list">${unparsed.map(n=>`<li><span class="nd">${escapeHtml((n.date||'').slice(5).replace('-','/'))}</span>${escapeHtml(n.title||'(件名なし)')}<span class="nf">${escapeHtml(n.from||'')}</span><button type="button" class="btn-ghost notice-ok" data-id="${escapeHtml(n.id)}">確認済みにする</button></li>`).join('')}</ul></div>`;
+      <ul class="notice-list">${unparsed.map(n=>`<li><span class="nd">${escapeHtml((n.date||'').slice(5).replace('-','/'))}</span>${escapeHtml(n.title||'(件名なし)')}<span class="nf">${escapeHtml(n.from||'')}</span><button type="button" class="btn-ghost notice-ok" data-id="${escapeHtml(n.id)}">確認済みにする</button></li>`).join('')}</ul>
+      ${unparsed.length > 1 ? `<div class="notice-actions"><button type="button" class="btn-ghost" id="unparsed-all-ok">すべて確認済みにする</button></div>` : ''}</div>`;
   }
   if(autoCheck.length){
     html += `<div class="notice-box"><b>登録されていない形のメールから自動で読み取ったお客様が ${autoCheck.length}件 あります</b>（一覧に「自動・要確認」と表示）<br>
@@ -2289,6 +2290,18 @@ async function renderNotices(){
   bindNoticeButtons(box);
 }
 function bindNoticeButtons(box){
+  const allBtn = box.querySelector('#unparsed-all-ok');
+  if(allBtn) allBtn.onclick = async ()=>{
+    const ids = [...box.querySelectorAll('.notice-box.warn .notice-ok')].map(b=>b.dataset.id);
+    if(!(await customConfirm(`読み取れなかった反響メールのお知らせ ${ids.length}件を、すべて確認済みにします。よろしいですか？`))) return;
+    try{
+      const entries = {}; // まとめて消す（1回の保存）
+      if(window.storage && window.storage.batchDelete) await window.storage.batchDelete(ids.map(id=>'notice:' + id));
+      else for(const id of ids) await deleteRecord('notice', id);
+      toast('確認済みにしました');
+    }catch(e){ toast('保存できませんでした：' + (e.message||e)); }
+    renderNotices();
+  };
   box.querySelectorAll('.notice-ok').forEach(b=>b.onclick = async ()=>{
     try{ await deleteRecord('notice', b.dataset.id); toast('確認済みにしました'); }catch(e){ toast('保存できませんでした：' + (e.message||e)); }
     renderNotices();
