@@ -116,6 +116,9 @@
   .list-table.grid-lines thead th{border-bottom:1px solid var(--line); text-align:center;}
   .list-table.grid-lines td.ctr{text-align:center;}
   .list-table tbody tr.row-out td{background:#e9e9e9; color:#8a8a8a;}
+  .list-table tbody tr.row-deleted td{background:#f6e6e2; color:#9a7d76;}
+  .list-table tbody tr.row-deleted:hover td{background:#f0d9d3;}
+  .badge-deleted{background:#a8503c; color:#fff; border-color:#a8503c;}
   .list-table tbody tr.row-pending td{background:#fff1c9;}
   .list-table tbody tr.row-out:hover td{background:#dedede;}
   .list-table tbody tr.row-pending:hover td{background:#ffe7a3;}
@@ -140,6 +143,13 @@
   .m-stage b{color:var(--wood-800); font-size:15px; font-variant-numeric:tabular-nums;}
   .m-stage.contract{border-color:var(--wood); color:var(--wood-dark);}
   .stage-tag{white-space:nowrap;}
+  .trigger-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;}
+  .tchip{font:inherit; font-size:12.5px; padding:6px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; margin:0;}
+  .tchip.on{background:var(--wood); border-color:var(--wood); color:#fff;}
+  .tchip:focus-visible{outline:2px solid var(--wood); outline-offset:1px;}
+  .trigger-hint{font-size:11.5px; color:var(--ink-faint); margin:4px 0 0;}
+  .skipline{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:400; color:var(--ink-soft); margin-top:6px;}
+  .skipline input{width:16px; height:16px; margin:0;}
   .seg{display:inline-flex; background:var(--wood-50); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px;}
   .seg button{font:inherit; font-size:12.5px; font-weight:600; color:var(--ink-soft); background:none; border:none; border-radius:7px; padding:6px 12px; cursor:pointer; margin:0;}
   .seg button.active{background:var(--wood); color:#fff;}
@@ -564,7 +574,7 @@
             </select>
           </div>
         </div>
-        <div>
+        <div class="hidden">
           <label>きっかけ</label>
           <select id="v-trigger">
             <option>インスタ</option><option>紹介</option><option>検索Web</option><option>スーモ注文住宅</option>
@@ -574,6 +584,7 @@
           </select>
         </div>
       </div>
+      <div class="full-w" id="v-trigger-chips"><label>きっかけ</label></div>
       <div class="full-w hidden" id="v-trigger-other-wrap">
         <label>「その他」の内容</label>
         <input type="text" id="v-trigger-other" list="other-media-suggestions" placeholder="例：SUUMOカウンター、HOME'S、通りすがり など">
@@ -583,6 +594,7 @@
           <label>土地</label>
           <select id="v-land">
             <option value="">未選択</option>
+            <option>あり</option>
             <option>あり(建替)</option>
             <option>あり(親等)</option>
             <option>あり(購入済)</option>
@@ -605,6 +617,10 @@
             <label style="margin:0; font-weight:400; color:var(--ink);">お礼済み</label>
           </div>
         </div>
+      </div>
+      <div class="checkline full-w" style="margin-top:2px;">
+        <input type="checkbox" id="v-deleted">
+        <label for="v-deleted" style="margin:0; font-weight:400; color:var(--ink);">削除客（お客様は残し、案内・DMは送らない。一覧で赤みのある色になります）</label>
       </div>
       <div class="full-w hidden" id="v-hopearea-wrap">
         <label>希望予定地</label>
@@ -722,7 +738,7 @@
             </select>
           </div>
         </div>
-        <div>
+        <div class="hidden">
           <label>きっかけ</label>
           <select id="rv-trigger">
             <option value="">未選択</option>
@@ -732,6 +748,7 @@
             <option>FB</option><option>ピンタレスト</option><option>その他</option>
           </select>
         </div>
+        <div class="full-w" id="rv-trigger-chips"><label>きっかけ</label></div>
         <div class="full-w hidden" id="rv-trigger-other-wrap">
           <label>「その他」の内容</label>
           <input type="text" id="rv-trigger-other" list="other-media-suggestions" placeholder="例：SUUMOカウンター、HOME'S、通りすがり など">
@@ -740,6 +757,7 @@
           <label>土地</label>
           <select id="rv-land">
             <option value="">未選択</option>
+          <option>あり</option>
             <option>あり(建替)</option>
             <option>あり(親等)</option>
             <option>あり(購入済)</option>
@@ -861,17 +879,21 @@
         <label>建設予定地希望地</label>
         <input type="text" id="s-area" placeholder="任意">
       </div>
-      <div class="checkline">
-        <input type="checkbox" id="s-outofarea">
-        <label style="margin:0; font-weight:400; color:var(--ink);">建設エリア外</label>
+      <div>
+        <label for="s-kubun">区分</label>
+        <select id="s-kubun">
+          <option value="">通常</option>
+          <option value="outofarea">エリア外（建設エリア外）</option>
+          <option value="pending">対応中（住所不明・エリア未確認など）</option>
+          <option value="deleted">削除客（お客様は残し、案内・DMは送らない）</option>
+        </select>
+        <p style="font-size:11.5px; color:var(--ink-faint); margin:4px 0 0;">エリア外は灰色、対応中は黄色、削除客は赤みのある色で一覧に表示されます。エリア外・対応中は集計の割合に含めません。</p>
       </div>
+      <input type="checkbox" id="s-outofarea" class="hidden" tabindex="-1" aria-hidden="true">
       <div class="full-w" style="border-top:1px dashed var(--line); margin-top:6px; padding-top:12px;">
         <div class="section-title" style="margin:0 0 10px;">資料発送管理</div>
-        <div class="checkline">
-          <input type="checkbox" id="s-pending">
-          <label style="margin:0; font-weight:400; color:var(--ink);">対応中（住所不明・エリア未確認などで、まだ資料を発送できない）</label>
-        </div>
-        <p style="font-size:11.5px; color:var(--ink-faint); margin:6px 0 0;">対応中にすると、一覧で黄色く表示され、集計の割合には含まれません。確認が取れたらチェックを外してください。</p>
+        <input type="checkbox" id="s-pending" class="hidden" tabindex="-1" aria-hidden="true">
+        <p style="font-size:11.5px; color:var(--ink-faint); margin:0;">送らない回は「送らない（不要）」にチェックすると、一覧で「不要」と表示されます。</p>
       </div>
       <div class="row2">
         <div>
@@ -881,6 +903,7 @@
         <div>
           <label>1回目発送実績日</label>
           <input type="date" id="s-send1-actual">
+          <label class="skipline"><input type="checkbox" id="s-send1-skip"> 送らない（不要）</label>
         </div>
       </div>
       <div class="row2">
@@ -891,6 +914,7 @@
         <div>
           <label>2回目発送実績日</label>
           <input type="date" id="s-send2-actual">
+          <label class="skipline"><input type="checkbox" id="s-send2-skip"> 送らない（不要）</label>
         </div>
       </div>
       <div class="full-w">
@@ -1775,7 +1799,7 @@ function buildShinchokuMonthTable(items){
     tr.innerHTML = `<td>${escapeHtml(it.date||'')}</td>`
       + `<td>${escapeHtml(it.name||'')}</td><td>${staff}</td>`
       + `<td class="num-col">${isContract ? escapeHtml(formatAmountYen(it.amount)) : ''}</td>`
-      + `<td class="wrap">${isContract ? escapeHtml(it.trigger||'') + (it.triggerOther ? '(' + escapeHtml(it.triggerOther) + ')' : '') : ''}</td>`
+      + `<td class="wrap">${isContract ? escapeHtml(canonTrigger(it.trigger, it.triggerOther)) + (it.triggerOther ? '(' + escapeHtml(it.triggerOther) + ')' : '') : ''}</td>`
       + `<td class="ctr">${isContract && it.referral ? '○' : ''}</td>`
       + `<td>${escapeHtml(stageLandText(it))}</td><td></td>`;
     tr.addEventListener('click', ()=>editStage(it.id));
@@ -2041,7 +2065,7 @@ async function renderPeriods(){
     countRow('合計', d=>d[listKey].length, { indent:true, sum:true });
   };
   const stageN = (d, st) => d.p.filter(p=>p.stage===st).length;
-  const isRef = r => r.trigger === '紹介';
+  const isRef = isReferralVisit;
 
   sec('総数');
   countRow('反響総数（資料請求＋来場）', d=>d.s.length + d.r.length, { strong:true });
@@ -2051,9 +2075,18 @@ async function renderPeriods(){
   breakdown('反響先', 's', 'source');
   breakdown('知った媒体', 's', 'media');
   breakdown('土地', 's', 'land');
+  // 複数回答の内訳（1人で複数数える）
+  const breakdownMulti = (title, listKey, getArr) => {
+    const totals = {};
+    ({s:allS, r:allR, p:allP})[listKey].forEach(r=>{ const a = getArr(r); (a.length ? a : ['未入力']).forEach(v=>{ totals[v] = (totals[v]||0) + 1; }); });
+    const keys = Object.keys(totals).sort((a,b)=> (a==='未入力') - (b==='未入力') || totals[b] - totals[a]);
+    rows.push({ type:'sub', label:title });
+    keys.forEach(k=> countRow(k, d=>d[listKey].filter(r=>{ const a = getArr(r); return k === '未入力' ? !a.length : a.includes(k); }).length, { indent:true }));
+    countRow('来場者数', d=>d[listKey].length, { indent:true, sum:true });
+  };
   sec('新規来場者');
   breakdown('来場場所', 'r', 'place');
-  breakdown('きっかけ', 'r', 'trigger');
+  breakdownMulti('きっかけ（複数回答）', 'r', triggersOf);
   breakdown('土地', 'r', 'land');
   breakdown('ランク（A〜E）', 'r', null, r=>((r.rank||'').split('-')[0]) || '不明');
   breakdown('ランク（1〜5）', 'r', null, r=>((r.rank||'').split('-')[1]) || '不明');
@@ -2172,7 +2205,7 @@ async function buildRaijouTableWrap(filtered){
     const key = normalizeName(it.name);
     const linked = it.linkedShiryouId && shiryouById[it.linkedShiryouId];
     const hasShiryou = shiryouNameSet.has(key) || !!linked;
-    const tr = document.createElement('tr'); tr.className = 'row-clickable'; tr.title = 'クリックして編集';
+    const tr = document.createElement('tr'); tr.className = 'row-clickable' + (isDeletedRec(it) ? ' row-deleted' : ''); tr.title = 'クリックして編集';
     tr.innerHTML = `
       <td>${escapeHtml(it.date)}</td>
       <td>${escapeHtml(it.name)}</td>
@@ -2181,7 +2214,7 @@ async function buildRaijouTableWrap(filtered){
       <td>${escapeHtml(it.staff)}</td>
       <td>${escapeHtml(it.land)}</td>
       <td>${rankBadgesHtml(it.rank)}</td>
-      <td class="wrap">${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
+      <td class="wrap">${escapeHtml(triggerText(it))}</td>
       <td>${it.thanksSent?'<span class="tag-sm badge-shiryou">済</span>':'未'}</td>
       <td>${hasShiryou?'<span class="tag-sm badge-shiryou">済</span>':''}</td>
       <td></td>
@@ -2207,7 +2240,8 @@ function buildShiryouTableWrap(filtered){
   const tbody = document.createElement('tbody');
   filtered.forEach(it=>{
     const tr = document.createElement('tr');
-    tr.className = 'row-clickable' + (it.outofarea ? ' row-out' : (it.pending ? ' row-pending' : ''));
+    const del = isDeletedRec(it);
+    tr.className = 'row-clickable' + (del ? ' row-deleted' : (it.outofarea ? ' row-out' : (it.pending ? ' row-pending' : '')));
     tr.title = 'クリックして編集';
     const plan = computeSendPlan(it.date);
     const fmtMD = (d)=>{ const m = (d||'').match(/^\d{4}-(\d{2})-(\d{2})$/); return m ? `${+m[1]}/${+m[2]}` : escapeHtml(d||''); };
@@ -2216,14 +2250,15 @@ function buildShiryouTableWrap(filtered){
     // エリア外は発送しないので、発送予定・実績は空欄にする
     const blank = !!it.outofarea;
     const p1 = blank ? '' : (plan.planned1 ? fmtMD(plan.planned1) : '');
-    const a1 = blank ? '' : (plan.planned1 ? (it.send1Actual ? done(it.send1Actual) : unsent) : '');
+    const skip = '<span style="color:var(--ink-faint); font-weight:600;">不要</span>';
+    const a1 = blank ? '' : (it.send1Skip ? skip : (plan.planned1 ? (it.send1Actual ? done(it.send1Actual) : unsent) : ''));
     const p2 = blank ? '' : (plan.planned2 ? fmtMD(plan.planned2) : '');
-    const a2 = blank ? '' : (plan.planned2 ? (it.send2Actual ? done(it.send2Actual) : unsent) : '');
+    const a2 = blank ? '' : (it.send2Skip ? skip : (plan.planned2 ? (it.send2Actual ? done(it.send2Actual) : unsent) : ''));
     tr.innerHTML = `
       <td>${escapeHtml(it.date)}</td><td>${escapeHtml(it.name)}${autoTag(it)}</td><td>${escapeHtml(it.source)}</td>
       <td>${escapeHtml(it.media)}</td><td class="wrap">${escapeHtml(trimAddressToTown(it.address))}</td><td>${escapeHtml(it.land)}</td><td class="wrap">${escapeHtml(it.area)}</td>
       <td class="ctr">${p1}</td><td class="ctr">${a1}</td><td class="ctr">${p2}</td><td class="ctr">${a2}</td>
-      <td class="ctr">${it.outofarea?'<span class="tag-sm badge-gray">エリア外</span>':(it.pending?'<span class="tag-sm badge-pending">対応中</span>':'')}</td><td></td>
+      <td class="ctr">${[del?'<span class="tag-sm badge-deleted">削除客</span>':'', it.outofarea?'<span class="tag-sm badge-gray">エリア外</span>':'', it.pending?'<span class="tag-sm badge-pending">対応中</span>':''].filter(Boolean).join(' ')}</td><td></td>
     `;
     tr.addEventListener('click', ()=>editShiryou(it.id));
     const delBtn = document.createElement('button'); delBtn.className='del'; delBtn.textContent='削除';
@@ -2264,7 +2299,7 @@ function shinchokuColumns(stage){
   if(stage === '建築申込') return [date, name, staff, land];
   if(stage === '請負契約') return [date, name, staff,
     {h:'金額', f:it=>escapeHtml(formatAmountYen(it.amount)), cls:'num-col'},
-    {h:'きっかけ', f:it=>escapeHtml(it.trigger||'')+(it.triggerOther?'('+escapeHtml(it.triggerOther)+')':'')},
+    {h:'きっかけ', f:it=>escapeHtml(canonTrigger(it.trigger, it.triggerOther))+(it.triggerOther?'('+escapeHtml(it.triggerOther)+')':'')},
     {h:'紹介', f:it=>it.referral?'○':'', cls:'ctr'},
     land];
   return [date, name, staff];
@@ -2391,7 +2426,7 @@ function buildRaijouCardDiv(it, stageMap, hasShiryou, linked){
         <button type="button" class="thanks-toggle ${it.thanksSent?'on':''}" data-id="${it.id}">${it.thanksSent?'✓ お礼済':'お礼未'}</button>
       </div>
     </div>
-    <div class="meta">${it.place||''} ／ 担当:${it.staff||''} ／ ランク ${rankBadgesHtml(it.rank)} ／ ${it.trigger||''}${it.triggerOther?'('+it.triggerOther+')':''}${it.land?' ／ '+it.land:''}${it.hopeArea?'（希望:'+it.hopeArea+'）':''}${it.address?'<br>現住所:'+trimAddressToTown(it.address):''}${it.dmMethod?'<br>DM:'+it.dmMethod:''}${it.note?'<br>備考:'+it.note:''}</div>
+    <div class="meta">${escapeHtml(it.place||'')} ／ 担当:${escapeHtml(it.staff||'')} ／ ランク ${rankBadgesHtml(it.rank)} ／ ${escapeHtml(triggerText(it))}${it.land?' ／ '+it.land:''}${it.hopeArea?'（希望:'+it.hopeArea+'）':''}${it.address?'<br>現住所:'+trimAddressToTown(it.address):''}${it.dmMethod?'<br>DM:'+it.dmMethod:''}${it.note?'<br>備考:'+it.note:''}</div>
     <div class="tags">${shiryouBadge}${(it.interests||[]).map(i=>`<span class="tag-sm">${i}</span>`).join('')}${it.landy?'<span class="tag-sm">ランディ登録</span>':''}</div>
     <div class="stage-toggles">${stageChips}</div>
   `;
@@ -2672,6 +2707,10 @@ function inPeriod(dateStr, period){
   return d.getFullYear()===target.getFullYear() && d.getMonth()===target.getMonth();
 }
 
+function countTriggers(visits){
+  const c = {}; visits.forEach(r=>{ const t = triggersOf(r); (t.length ? t : ['(未入力)']).forEach(v=>{ c[v] = (c[v]||0) + 1; }); });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]);
+}
 function countBy(items, field){
   const counts = {};
   items.forEach(it=>{
@@ -2846,7 +2885,7 @@ async function renderAgg(){
     + breakdownCard('土地', countBy(shiryou, 'land'), inCount)
     + `</div>`;
   html += `<h3 class="agg-sub">来場者 <span>${raijou.length}組</span></h3><div class="bd-grid">`
-    + breakdownCard('きっかけ', countBy(raijou, 'trigger'), raijou.length, { unit:'組' })
+    + breakdownCard('きっかけ（複数回答）', countTriggers(raijou), raijou.length, { unit:'組' })
     + breakdownCard('来場場所', countBy(raijou, 'place'), raijou.length, { unit:'組' })
     + breakdownCard('接客担当', countBy(raijou, 'staff'), raijou.length, { unit:'組' })
     + breakdownCard('土地', countBy(raijou, 'land'), raijou.length, { unit:'組' })
@@ -2963,7 +3002,7 @@ async function renderAgg(){
   html += `</div></details>`;
 
   // ── 紹介・資料請求率（1つの表に） ──
-  const referredVisitors = raijou.filter(r=>r.trigger === '紹介');
+  const referredVisitors = raijou.filter(isReferralVisit);
   const referredNameSet = new Set(referredVisitors.map(r=>normalizeName(r.name)));
   const contractReferrals = contractRecords.filter(c=>referredNameSet.has(normalizeName(c.name)));
   const rates = [
@@ -3047,16 +3086,65 @@ const INTEREST_KEYWORDS = {
   '間取': ['間取り','家事動線','間取'], '長期': ['長期優良住宅','ＺＥＨ','ZEH','長期'],
   '価格': ['価格','コスト'], '理念': ['会社の理念','理念'], 'アフター': ['アフターメンテナンス','アフター']
 };
+// 来場のきっかけ（エルメのアンケートの選択肢と同じ分け方）
+const TRIGGER_OPTIONS = ['友人・知人の紹介','Google検索','Yahoo検索','Instagram','Web広告','SUUMOネット','SUUMO注文住宅','ドコタテ(Webサイト)','重量木骨の家サイト',
+  '群馬の家（雑誌）','「群馬の家」建築設計コンクール','すみかくらぶ(上毛新聞)','チラシ・DM','Facebook','SUUMO雑誌','E-Dappe(い〜だっぺ雑誌)','ピンタレスト','その他'];
+// 以前の書き方（Excel・旧ツール）→ 新しい分け方
+const TRIGGER_LEGACY = { 'インスタ':'Instagram', '紹介':'友人・知人の紹介', '検索Web':'Google検索', 'スーモ注文住宅':'SUUMO注文住宅', '重木HP':'重量木骨の家サイト',
+  '群馬の家':'群馬の家（雑誌）', 'スーモネット':'SUUMOネット', 'チラシDM':'チラシ・DM', 'すみか':'すみかくらぶ(上毛新聞)', 'ドコタテ':'ドコタテ(Webサイト)',
+  'FB':'Facebook', 'コンクール':'「群馬の家」建築設計コンクール', 'E-Dappe':'E-Dappe(い〜だっぺ雑誌)' };
 const TRIGGER_KEYWORDS = {
-  'インスタ': ['インスタグラム','Instagram','インスタ'], '紹介': ['友人・知人の紹介','紹介'],
-  '検索Web': ['検索Webサイト','検索','Google','グーグル','yahoo','ヤフー'], 'スーモ注文住宅': ['SUUMO注文住宅','スーモ注文住宅'],
-  '重木HP': ['重量木骨の家サイト','重木HP'], '群馬の家': ['「群馬の家」','群馬の家'],
-  'スーモネット': ['SUUMOネット','スーモネット'], 'チラシDM': ['チラシ','ＤＭ','DM'],
-  'Web広告': ['Web広告','ウェブ広告'], 'すみか': ['すみかくらぶ','すみか'], 'ドコタテ': ['ドコタテ'],
-  'FB': ['Facebook','ＦＢ','FB','フェイスブック'], 'ピンタレスト': ['ピンタレスト','Pinterest'],
-  'コンクール': ['建築設計コンクール','コンクール'], 'SUUMO雑誌': ['SUUMO雑誌','スーモ雑誌'],
-  'E-Dappe': ['E-Dappe','E-dappe','い～だっぺ','いーだっぺ','イーダッペ']
+  '友人・知人の紹介': ['友人・知人の紹介','紹介'], 'Yahoo検索': ['Yahoo','yahoo','ヤフー'], 'Google検索': ['Google','google','グーグル','検索'],
+  'Instagram': ['インスタグラム','Instagram','instagram','インスタ'], 'SUUMO雑誌': ['SUUMO雑誌','スーモ雑誌'], 'SUUMO注文住宅': ['SUUMO注文住宅','スーモ注文住宅','ｽｰﾓ注文住宅'], 'SUUMOネット': ['SUUMOネット','スーモネット','ｽｰﾓﾈｯﾄ','SUUMO','スーモ'],
+  '重量木骨の家サイト': ['重量木骨','重木HP'], '「群馬の家」建築設計コンクール': ['建築設計コンクール','建設設計コンクール','コンクール'], '群馬の家（雑誌）': ['群馬の家'],
+  'チラシ・DM': ['チラシ','ＤＭ','DM'], 'Web広告': ['Web広告','ウェブ広告','WEB広告'], 'すみかくらぶ(上毛新聞)': ['すみかくらぶ','すみか','上毛新聞'], 'ドコタテ(Webサイト)': ['ドコタテ'],
+  'Facebook': ['Facebook','facebook','ＦＢ','FB','フェイスブック'], 'ピンタレスト': ['ピンタレスト','Pinterest'],
+  'E-Dappe(い〜だっぺ雑誌)': ['E-Dappe','E-dappe','い～だっぺ','い〜だっぺ','いーだっぺ','イーダッペ']
 };
+function canonTrigger(v, other){
+  v = (v || '').trim(); if(!v) return '';
+  if(TRIGGER_OPTIONS.includes(v)) return v;
+  if(v === '検索Web' && /yahoo|ヤフー/i.test(other || '')) return 'Yahoo検索';
+  if(TRIGGER_LEGACY[v]) return TRIGGER_LEGACY[v];
+  for(const [k, ws] of Object.entries(TRIGGER_KEYWORDS)){ if(ws.some(w=>v.includes(w))) return k; }
+  return v;
+}
+// レコードのきっかけ（複数）。以前の1つだけのデータも、新しい分け方にそろえて返す
+function triggersOf(r){
+  if(!r) return [];
+  const raw = (Array.isArray(r.triggers) && r.triggers.length) ? r.triggers : (r.trigger ? [r.trigger] : []);
+  return Array.from(new Set(raw.map(v=>canonTrigger(v, r.triggerOther)).filter(Boolean)));
+}
+function triggerText(r){ const t = triggersOf(r).join('・'); return t + (r && r.triggerOther ? '(' + r.triggerOther + ')' : ''); }
+// 削除客：以前のデータは備考の「【削除客】」でも判定する
+function isDeletedRec(r){ return !!r && (r.deleted === true || (r.deleted === undefined && /【削除客】/.test(r.note || ''))); }
+const isReferralVisit = r => triggersOf(r).includes('友人・知人の紹介');
+// 複数選べるきっかけのボタン（元の select は隠して、1つ目の値を入れておく）
+function makeTriggerPicker(prefix){
+  const sel = document.getElementById(prefix + '-trigger');
+  const otherWrap = document.getElementById(prefix + '-trigger-other-wrap');
+  sel.innerHTML = '<option value=""></option>' + TRIGGER_OPTIONS.map(o=>`<option>${o}</option>`).join('');
+  sel.classList.add('hidden');
+  const box = document.createElement('div'); box.className = 'trigger-chips'; box.setAttribute('role', 'group');
+  const holder = document.getElementById(prefix + '-trigger-chips');
+  if(holder) holder.appendChild(box); else sel.after(box);
+  const hint = document.createElement('p'); hint.className = 'trigger-hint'; hint.textContent = '複数選べます（すべて集計に入ります）';
+  box.after(hint);
+  let picked = [];
+  const render = ()=>{
+    box.innerHTML = TRIGGER_OPTIONS.map(o=>`<button type="button" class="tchip${picked.includes(o)?' on':''}" data-v="${o}" aria-pressed="${picked.includes(o)}">${o}</button>`).join('');
+    if(otherWrap) otherWrap.classList.toggle('hidden', !picked.includes('その他'));
+  };
+  box.addEventListener('click', e=>{
+    const b = e.target.closest('.tchip'); if(!b) return;
+    const v = b.dataset.v;
+    picked = picked.includes(v) ? picked.filter(x=>x!==v) : picked.concat(v);
+    sel.value = picked[0] || ''; render();
+  });
+  sel.addEventListener('change', ()=>{ const v = canonTrigger(sel.value); if(v && !picked.includes(v)){ picked.push(v); } render(); });
+  render();
+  return { get: ()=>picked.slice(), set: arr=>{ picked = Array.from(new Set((arr||[]).map(x=>canonTrigger(x)).filter(Boolean))); sel.value = picked[0] || ''; render(); } };
+}
 const PLACE_KEYWORDS = {
   '見学会':['見学会'], '高崎MH':['高崎MH'], 'リラクラス':['リラクラス'], 'ソトウチ':['ソトウチ'],
   '高崎':['高崎'], 'オンライン':['オンライン']
@@ -3525,8 +3613,8 @@ function switchView(name){
   if(name==='agg') renderAgg();
   if(name==='stage'){ editingStageId = null; document.getElementById('form-stage-submit-btn').textContent = '進捗を保存'; populateNameSuggestions(); renderStageRecent(); document.getElementById('st-date').value = formatDateLocal(new Date()); updateStageFieldVisibility(); }
   if(name==='periods') renderPeriods();
-  if(name==='visit'){ editingRaijouId = null; document.getElementById('form-visit-submit-btn').textContent = '来場情報を保存'; pendingReservationId = null; selectedInterests = new Set(); renderInterestChips(); document.getElementById('v-date').value = formatDateLocal(new Date()); document.getElementById('line-paste').value=''; document.getElementById('line-parse-result').textContent=''; document.getElementById('v-address').value=''; document.getElementById('v-landy').checked=false; document.getElementById('v-thanks-sent').checked=false; document.getElementById('v-reservation-booked-date').value=''; document.getElementById('v-reservation-method').value=''; document.getElementById('v-dm').value=''; document.getElementById('v-land').value=''; document.getElementById('v-hopearea').value=''; document.getElementById('v-hopearea-wrap').classList.add('hidden'); document.getElementById('v-trigger-other').value=''; document.getElementById('v-trigger-other-wrap').classList.add('hidden'); populateLinkedShiryouOptions(); }
-  if(name==='shiryou'){ editingShiryouId = null; document.getElementById('form-shiryou-submit-btn').textContent = '資料請求情報を保存'; document.getElementById('s-date').value = formatDateLocal(new Date()); document.getElementById('mail-paste').value=''; document.getElementById('mail-parse-result').textContent=''; document.getElementById('s-media-other').value=''; document.getElementById('s-media-other-wrap').classList.add('hidden'); document.getElementById('s-land').value=''; document.getElementById('s-send1-actual').value=''; document.getElementById('s-send2-actual').value=''; document.getElementById('s-outofarea').checked=false; document.getElementById('s-pending').checked=false; calcSendDates(); }
+  if(name==='visit'){ editingRaijouId = null; document.getElementById('form-visit-submit-btn').textContent = '来場情報を保存'; pendingReservationId = null; selectedInterests = new Set(); renderInterestChips(); document.getElementById('v-date').value = formatDateLocal(new Date()); document.getElementById('line-paste').value=''; document.getElementById('line-parse-result').textContent=''; document.getElementById('v-address').value=''; document.getElementById('v-landy').checked=false; document.getElementById('v-thanks-sent').checked=false; document.getElementById('v-reservation-booked-date').value=''; document.getElementById('v-reservation-method').value=''; document.getElementById('v-dm').value=''; document.getElementById('v-land').value=''; document.getElementById('v-hopearea').value=''; document.getElementById('v-hopearea-wrap').classList.add('hidden'); document.getElementById('v-trigger-other').value=''; vTriggerPicker.set([]); document.getElementById('v-deleted').checked=false; populateLinkedShiryouOptions(); }
+  if(name==='shiryou'){ editingShiryouId = null; document.getElementById('form-shiryou-submit-btn').textContent = '資料請求情報を保存'; document.getElementById('s-date').value = formatDateLocal(new Date()); document.getElementById('mail-paste').value=''; document.getElementById('mail-parse-result').textContent=''; document.getElementById('s-media-other').value=''; document.getElementById('s-media-other-wrap').classList.add('hidden'); document.getElementById('s-land').value=''; document.getElementById('s-send1-actual').value=''; document.getElementById('s-send2-actual').value=''; document.getElementById('s-outofarea').checked=false; document.getElementById('s-pending').checked=false; document.getElementById('s-kubun').value=''; document.getElementById('s-send1-skip').checked=false; document.getElementById('s-send2-skip').checked=false; calcSendDates(); }
 }
 
 document.querySelectorAll('nav button').forEach(b=>{
@@ -3566,9 +3654,9 @@ async function editRaijou(id){
   document.getElementById('v-land').value = rec.land || '';
   document.getElementById('v-land').dispatchEvent(new Event('change'));
   document.getElementById('v-hopearea').value = rec.hopeArea || '';
-  if(rec.trigger) document.getElementById('v-trigger').value = rec.trigger;
-  document.getElementById('v-trigger').dispatchEvent(new Event('change'));
+  vTriggerPicker.set(triggersOf(rec));
   document.getElementById('v-trigger-other').value = rec.triggerOther || '';
+  document.getElementById('v-deleted').checked = isDeletedRec(rec);
   selectedInterests = new Set(rec.interests || []);
   renderInterestChips();
   document.getElementById('v-linked-shiryou').value = rec.linkedShiryouId || '';
@@ -3603,6 +3691,9 @@ async function editShiryou(id){
   document.getElementById('s-area').value = rec.area || '';
   document.getElementById('s-outofarea').checked = !!rec.outofarea;
   document.getElementById('s-pending').checked = !!rec.pending;
+  document.getElementById('s-kubun').value = isDeletedRec(rec) ? 'deleted' : (rec.outofarea ? 'outofarea' : (rec.pending ? 'pending' : ''));
+  document.getElementById('s-send1-skip').checked = !!rec.send1Skip;
+  document.getElementById('s-send2-skip').checked = !!rec.send2Skip;
   document.getElementById('s-note').value = rec.note || '';
   document.getElementById('form-shiryou-submit-btn').textContent = '資料請求情報を更新';
   toast('編集モードです。内容を修正して「資料請求情報を更新」を押してください');
@@ -3619,7 +3710,7 @@ async function editStage(id){
   document.getElementById('st-date').value = rec.date || '';
   document.getElementById('st-staff').value = rec.staff || document.getElementById('st-staff').value;
   document.getElementById('st-amount').value = rec.amount || '';
-  if(rec.trigger) document.getElementById('st-trigger').value = rec.trigger;
+  if(rec.trigger) document.getElementById('st-trigger').value = canonTrigger(rec.trigger, rec.triggerOther);
   document.getElementById('st-trigger').dispatchEvent(new Event('change'));
   document.getElementById('st-trigger-other').value = rec.triggerOther || '';
   document.getElementById('st-referral').checked = !!rec.referral;
@@ -3643,8 +3734,7 @@ async function editReservation(id){
   document.getElementById('rv-planned-date').value = rec.date || '';
   document.getElementById('rv-place').value = rec.place || document.getElementById('rv-place').value;
   document.getElementById('rv-staff').value = rec.staff || document.getElementById('rv-staff').value;
-  if(rec.trigger) document.getElementById('rv-trigger').value = rec.trigger;
-  document.getElementById('rv-trigger').dispatchEvent(new Event('change'));
+  rvTriggerPicker.set(triggersOf(rec));
   document.getElementById('rv-trigger-other').value = rec.triggerOther || '';
   document.getElementById('rv-land').value = rec.land || '';
   document.getElementById('rv-land').dispatchEvent(new Event('change'));
@@ -3844,8 +3934,10 @@ document.getElementById('form-visit-submit-btn').addEventListener('click', async
     rank: `${rankLetter}-${rankNumber}`,
     land: document.getElementById('v-land').value,
     hopeArea: document.getElementById('v-hopearea').value,
-    trigger: document.getElementById('v-trigger').value,
+    trigger: vTriggerPicker.get()[0] || '',
+    triggers: vTriggerPicker.get(),
     triggerOther: document.getElementById('v-trigger-other').value,
+    deleted: document.getElementById('v-deleted').checked,
     interests: Array.from(selectedInterests),
     referral: document.getElementById('v-referral').value,
     address: document.getElementById('v-address').value,
@@ -4192,8 +4284,11 @@ document.getElementById('form-shiryou-submit-btn').addEventListener('click', asy
     address: document.getElementById('s-address').value,
     land: document.getElementById('s-land').value,
     area: document.getElementById('s-area').value,
-    outofarea: document.getElementById('s-outofarea').checked,
-    pending: document.getElementById('s-pending').checked,
+    outofarea: document.getElementById('s-kubun').value === 'outofarea',
+    pending: document.getElementById('s-kubun').value === 'pending',
+    deleted: document.getElementById('s-kubun').value === 'deleted',
+    send1Skip: document.getElementById('s-send1-skip').checked,
+    send2Skip: document.getElementById('s-send2-skip').checked,
     send1Planned: document.getElementById('s-send1-planned').value,
     send1Actual: document.getElementById('s-send1-actual').value,
     send2Planned: document.getElementById('s-send2-planned').value,
@@ -4227,10 +4322,7 @@ document.getElementById('v-land').addEventListener('change', ()=>{
   document.getElementById('v-hopearea-wrap').classList.toggle('hidden', !isNoLand);
 });
 
-document.getElementById('v-trigger').addEventListener('change', ()=>{
-  const isOther = document.getElementById('v-trigger').value === 'その他';
-  document.getElementById('v-trigger-other-wrap').classList.toggle('hidden', !isOther);
-});
+const vTriggerPicker = makeTriggerPicker('v');
 
 document.getElementById('s-media').addEventListener('change', ()=>{
   const isOther = document.getElementById('s-media').value === 'その他';
@@ -4269,14 +4361,15 @@ async function findRaijouByName(name){
   return raijouAll.find(r=>normalizeName(r.name)===target) || null;
 }
 
+(function(){ const st = document.getElementById('st-trigger'); st.innerHTML = '<option value="">未選択</option>' + TRIGGER_OPTIONS.map(o=>`<option>${o}</option>`).join(''); })();
 async function autoFillContractTrigger(){
   const stTriggerEl = document.getElementById('st-trigger');
   if(stTriggerEl.value) return; // すでに選択されている場合は上書きしない
   const name = document.getElementById('st-name').value.trim();
   if(!name) return;
   const match = await findRaijouByName(name);
-  if(match && match.trigger){
-    stTriggerEl.value = match.trigger;
+  if(match && triggersOf(match).length){
+    stTriggerEl.value = triggersOf(match)[0];
     stTriggerEl.dispatchEvent(new Event('change'));
     if(match.trigger === 'その他' && match.triggerOther){
       document.getElementById('st-trigger-other').value = match.triggerOther;
@@ -4357,15 +4450,13 @@ document.getElementById('visit-subtab-reservation').addEventListener('click', ()
   document.getElementById('visit-tab-reservation').classList.remove('hidden');
   document.getElementById('visit-tab-input').classList.add('hidden');
   editingReservationId = null;
+  rvTriggerPicker.set([]);
   document.getElementById('form-reservation-submit-btn').textContent = '予約を保存';
   document.getElementById('rv-booked-date').value = formatDateLocal(new Date());
   renderReservationList();
 });
 
-document.getElementById('rv-trigger').addEventListener('change', ()=>{
-  const isOther = document.getElementById('rv-trigger').value === 'その他';
-  document.getElementById('rv-trigger-other-wrap').classList.toggle('hidden', !isOther);
-});
+const rvTriggerPicker = makeTriggerPicker('rv');
 document.getElementById('rv-land').addEventListener('change', ()=>{
   const isNoLand = ['なし','検討中'].includes(document.getElementById('rv-land').value);
   document.getElementById('rv-hopearea-wrap').classList.toggle('hidden', !isNoLand);
@@ -4383,7 +4474,8 @@ document.getElementById('form-reservation-submit-btn').addEventListener('click',
     date: document.getElementById('rv-planned-date').value, // dateフィールド名はfindDuplicate等の共通処理に合わせる
     place: document.getElementById('rv-place').value,
     staff: document.getElementById('rv-staff').value,
-    trigger: document.getElementById('rv-trigger').value,
+    trigger: rvTriggerPicker.get()[0] || '',
+    triggers: rvTriggerPicker.get(),
     triggerOther: document.getElementById('rv-trigger-other').value,
     land: document.getElementById('rv-land').value,
     hopeArea: document.getElementById('rv-hopearea').value,
@@ -4434,7 +4526,7 @@ async function renderReservationList(){
     const div = document.createElement('div'); div.className = 'listitem';
     div.innerHTML = `
       <div class="top"><span class="name">${escapeHtml(it.name||'')}${autoTag(it)}</span><span class="date">来場予定：${escapeHtml(it.date||'未定')}</span></div>
-      <div class="meta">受付日:${escapeHtml(it.bookedDate||'不明')} ／ ${escapeHtml(it.place||'')} ／ 担当:${escapeHtml(it.staff||'')}${it.trigger?' ／ '+escapeHtml(it.trigger)+(it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''):''}${it.land?' ／ 土地:'+escapeHtml(it.land):''}${it.hopeArea?'（希望:'+escapeHtml(it.hopeArea)+'）':''}${it.tel?' ／ 電話:'+escapeHtml(it.tel):''}${it.address?'<br>'+escapeHtml(it.address):''}${it.note?'<br>'+escapeHtml(it.note):''}</div>
+      <div class="meta">受付日:${escapeHtml(it.bookedDate||'不明')} ／ ${escapeHtml(it.place||'')} ／ 担当:${escapeHtml(it.staff||'')}${triggersOf(it).length?' ／ '+escapeHtml(triggerText(it)):''}${it.land?' ／ 土地:'+escapeHtml(it.land):''}${it.hopeArea?'（希望:'+escapeHtml(it.hopeArea)+'）':''}${it.tel?' ／ 電話:'+escapeHtml(it.tel):''}${it.address?'<br>'+escapeHtml(it.address):''}${it.note?'<br>'+escapeHtml(it.note):''}</div>
     `;
     const doneBtn = document.createElement('button'); doneBtn.className='btn-ghost'; doneBtn.style.marginRight='6px'; doneBtn.textContent='来場入力へ';
     doneBtn.onclick = ()=>{
@@ -4447,6 +4539,10 @@ async function renderReservationList(){
       document.getElementById('v-address').value = it.address || document.getElementById('v-address').value;
       document.getElementById('v-reservation-booked-date').value = it.bookedDate || '';
       document.getElementById('v-reservation-method').value = it.method || '';
+      vTriggerPicker.set(triggersOf(it));
+      document.getElementById('v-trigger-other').value = it.triggerOther || '';
+      if(it.land){ document.getElementById('v-land').value = it.land; document.getElementById('v-land').dispatchEvent(new Event('change')); }
+      if(it.hopeArea) document.getElementById('v-hopearea').value = it.hopeArea;
       toast('予約データを来場フォームに反映しました。保存すると予約は自動で完了扱いになります。');
     };
     const delBtn = document.createElement('button'); delBtn.className='del'; delBtn.textContent='削除（キャンセル）';
@@ -4470,10 +4566,10 @@ async function printReservationList(){
     <tr>
       <td>${escapeHtml(it.date)||'未定'}</td>
       <td>${escapeHtml(it.bookedDate)}</td>
-      <td>${escapeHtml(it.name)}${autoTag(it)}</td>
+      <td>${escapeHtml(it.name)}${autoTag(it)}${isDeletedRec(it) ? ' <span class="tag-sm badge-deleted">削除客</span>' : ''}</td>
       <td>${escapeHtml(it.staff)}</td>
       <td>${escapeHtml(it.place)}</td>
-      <td class="wrap">${escapeHtml(it.trigger)}${it.triggerOther?'('+escapeHtml(it.triggerOther)+')':''}</td>
+      <td class="wrap">${escapeHtml(triggerText(it))}</td>
       <td>${escapeHtml(it.land)}</td>
       <td>${escapeHtml(it.tel)}</td>
       <td>${escapeHtml(it.address)}</td>
