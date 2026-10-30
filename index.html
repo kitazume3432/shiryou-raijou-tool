@@ -103,6 +103,14 @@
     color:var(--wood-dark); background:var(--wood-50); border:1px solid var(--wood-200); vertical-align:1px; white-space:nowrap;}
   .notice-box{background:var(--card); border:1px solid var(--wood-200); border-left:4px solid var(--wood); border-radius:12px;
     padding:12px 14px; margin-bottom:14px; font-size:13px; color:var(--ink);}
+  .notice-box.warn{border-left-color:var(--danger); background:#fdf6f4;}
+  .notice-list{list-style:none; padding:0; margin:8px 0 0;}
+  .notice-list li{display:flex; align-items:center; gap:10px; padding:5px 0; border-top:1px dotted var(--line); flex-wrap:wrap;}
+  .notice-list .nd{font-variant-numeric:tabular-nums; color:var(--ink-soft); min-width:3.2em;}
+  .notice-list .nf{font-size:11.5px; color:var(--ink-faint);}
+  .notice-list button{margin:0; padding:5px 10px; font-size:12px;}
+  .notice-list button:first-of-type{margin-left:auto;}
+  .tag-auto.check{color:#fff; background:var(--danger); border-color:var(--danger);}
   .notice-box .notice-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
   .notice-box button{margin:0; padding:8px 12px; font-size:13px;}
   .btn-ghost{background:transparent; border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:13px; color:var(--ink-soft);}
@@ -2224,24 +2232,71 @@ document.getElementById('cmp-from').addEventListener('change', e=>{ cmpFrom = Nu
 document.getElementById('cmp-to').addEventListener('change', e=>{ cmpTo = Number(e.target.value); renderPeriods(); });
 
 // ===== 自動取込からのお知らせ（SUUMOの資料請求通知など） =====
-function autoTag(it){ return it && it.auto ? '<span class="tag-auto" title="メールから自動で取り込みました">自動</span>' : ''; }
+function autoTag(it){
+  if(!it || !it.auto) return '';
+  if(it.auto.needsCheck) return '<span class="tag-auto check" title="登録されていない形のメールから自動で読み取りました。内容を確認してください">自動・要確認</span>';
+  return '<span class="tag-auto" title="メールから自動で取り込みました">自動</span>';
+}
 async function renderNotices(){
   const box = document.getElementById('dash-notices'); if(!box) return;
-  const items = (await getAll('notice').catch(()=>[])).filter(n=>n.type==='suumo');
-  if(!items.length){ box.innerHTML = ''; return; }
-  items.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  const dates = items.map(n=>escapeHtml((n.date||'').slice(5).replace('-','/'))).join('、');
-  box.innerHTML = `<div class="notice-box">
-    <b>SUUMOから資料請求の通知が ${items.length}件 届いています</b>（${dates}）<br>
-    通知メールにはお客様の情報が入っていません。SUUMOの管理画面からお客様データ（CSV）をダウンロードし、「＋資料請求を入力」→「CSVから一括インポート」で取り込んでください。
-    <div class="notice-actions"><button type="button" class="btn-ghost" id="notice-done-btn">取り込んだので消す</button></div>
+  const all = await getAll('notice').catch(()=>[]);
+  const items = all.filter(n=>n.type==='suumo');
+  const unparsed = all.filter(n=>n.type==='unparsed').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const autoCheck = [];
+  for(const k of ['shiryou','raijou','reservation']){
+    (await getAll(k).catch(()=>[])).filter(r=>r.auto && r.auto.needsCheck && !r.auto.checked).forEach(r=>autoCheck.push(Object.assign({ _kind:k }, r)));
+  }
+  let html = '';
+  if(unparsed.length){
+    html += `<div class="notice-box warn"><b>自動で読み取れなかった反響メールが ${unparsed.length}件 あります</b><br>
+      メールの内容を見て、資料請求・来場の入力画面から手で登録してください。登録したら「確認済みにする」を押してください。
+      <ul class="notice-list">${unparsed.map(n=>`<li><span class="nd">${escapeHtml((n.date||'').slice(5).replace('-','/'))}</span>${escapeHtml(n.title||'(件名なし)')}<span class="nf">${escapeHtml(n.from||'')}</span><button type="button" class="btn-ghost notice-ok" data-id="${escapeHtml(n.id)}">確認済みにする</button></li>`).join('')}</ul></div>`;
+  }
+  if(autoCheck.length){
+    html += `<div class="notice-box"><b>登録されていない形のメールから自動で読み取ったお客様が ${autoCheck.length}件 あります</b>（一覧に「自動・要確認」と表示）<br>
+      氏名・住所・反響先などが正しいか確認してください。確認したら「確認済みにする」を押すと、印が「自動」に変わります。
+      <ul class="notice-list">${autoCheck.map(r=>`<li><span class="nd">${escapeHtml((r.date||r.bookedDate||'').slice(5).replace('-','/'))}</span>${escapeHtml(r.name||'')}<span class="nf">${r._kind==='shiryou'?'資料請求':r._kind==='reservation'?'来場予約':'来場'}・${escapeHtml(r.source||r.method||'')}</span><button type="button" class="btn-ghost autocheck-ok" data-kind="${r._kind}" data-id="${escapeHtml(r.id)}">確認済みにする</button></li>`).join('')}</ul></div>`;
+  }
+  // SUUMOのお知らせ：同じ日（翌日まで）にSUUMOの資料請求が登録されていれば、対応済みとして自動で隠す
+  const suumoRecs = (await getAll('shiryou').catch(()=>[])).filter(r=>r.source === 'ｽｰﾓ注文住宅' || r.source === 'SUUMO注文住宅');
+  const used = new Set();
+  const nextDay = d => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + 1); return formatDateLocal(x); };
+  items.sort((a,b)=>((a.date||'') + (a.time||'')).localeCompare((b.date||'') + (b.time||'')));
+  const pending = items.filter(n=>{
+    const hit = suumoRecs.find(r=>!used.has(r.id) && (r.date === n.date || r.date === nextDay(n.date)));
+    if(hit){ used.add(hit.id); return false; }
+    return true;
+  });
+  if(!pending.length){ box.innerHTML = html; bindNoticeButtons(box); return; }
+  box.innerHTML = html + `<div class="notice-box warn">
+    <b>SUUMOから資料請求が ${pending.length}件 届いていて、まだツールに登録されていません</b><br>
+    お客様の情報は <b>KASIKA</b> に自動で登録されています。KASIKAで氏名・住所などを確認し、「このお客様を入力」から登録してください。
+    同じ日のSUUMOの資料請求を登録すると、このお知らせは自動で消えます。
+    <ul class="notice-list">${pending.map(n=>`<li><span class="nd">${escapeHtml((n.date||'').slice(5).replace('-','/'))}${n.time ? ' ' + escapeHtml(n.time) : ''}</span>SUUMO注文住宅 ${escapeHtml(n.form || '資料請求')}<button type="button" class="btn-primary suumo-input" data-date="${escapeHtml(n.date||'')}">このお客様を入力</button><button type="button" class="btn-ghost notice-ok" data-id="${escapeHtml(n.id)}" title="入力が不要な場合（重複など）">不要</button></li>`).join('')}</ul>
   </div>`;
-  document.getElementById('notice-done-btn').onclick = async ()=>{
-    if(!(await customConfirm(`SUUMOの通知 ${items.length}件を消します。CSVの取り込みは済みましたか？`))) return;
-    try{ for(const n of items) await deleteRecord('notice', n.id); toast('通知を消しました'); }
-    catch(e){ toast('消せませんでした：' + (e.message||e)); }
+  box.querySelectorAll('.suumo-input').forEach(b=>b.onclick = ()=>{
+    switchView('shiryou');
+    document.getElementById('s-date').value = b.dataset.date || formatDateLocal(new Date());
+    document.getElementById('s-date').dispatchEvent(new Event('change'));
+    if(typeof calcSendDates === 'function') calcSendDates();
+    const src = document.getElementById('s-source'); src.value = 'ｽｰﾓ注文住宅'; src.dispatchEvent(new Event('change'));
+    document.getElementById('s-name').focus();
+    toast('反響先「ｽｰﾓ注文住宅」・知った媒体「ｽｰﾓﾈｯﾄ」を入れました。KASIKAを見て氏名・住所を入力してください');
+  });
+  bindNoticeButtons(box);
+}
+function bindNoticeButtons(box){
+  box.querySelectorAll('.notice-ok').forEach(b=>b.onclick = async ()=>{
+    try{ await deleteRecord('notice', b.dataset.id); toast('確認済みにしました'); }catch(e){ toast('保存できませんでした：' + (e.message||e)); }
     renderNotices();
-  };
+  });
+  box.querySelectorAll('.autocheck-ok').forEach(b=>b.onclick = async ()=>{
+    try{
+      const rec = await getRecordById(b.dataset.kind, b.dataset.id);
+      if(rec){ await updateRecord(b.dataset.kind, rec.id, { auto: Object.assign({}, rec.auto, { needsCheck:false, checked:true }) }); toast('確認済みにしました'); }
+    }catch(e){ toast('保存できませんでした：' + (e.message||e)); }
+    renderDashboard();
+  });
 }
 
 async function buildRaijouTableWrap(filtered){
