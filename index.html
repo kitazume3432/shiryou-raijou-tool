@@ -3004,7 +3004,7 @@ async function renderAgg(){
   // ── 主要な数字 ──
   html += `<div class="agg-kpis">
     <div class="agg-kpi"><div class="k-lbl">資料請求</div><div class="k-num">${inCount}<small>件</small></div><div class="k-sub">エリア外 ${outCount}・対応中 ${pendingCountAgg}（集計対象外）</div></div>
-    <div class="agg-kpi"><div class="k-lbl">来場</div><div class="k-num">${raijou.length}<small>組</small></div><div class="k-sub">反響から来場率 ${fmtPct(raijou.length, inCount)}（参考値）</div></div>
+    <div class="agg-kpi"><div class="k-lbl">来場</div><div class="k-num">${raijou.length}<small>組</small></div><div class="k-sub">反響から来場率 ${fmtPct(raijou.length, inCount + raijou.length)}（参考値）</div></div>
     <div class="agg-kpi accent"><div class="k-lbl">来場からの成約率</div><div class="k-num">${fmtPct(contractCount, raijou.length)}</div><div class="k-sub">請負契約 ${contractCount}件 ÷ 来場 ${raijou.length}組${CONTRACT_RATE_KPI ? `／目標${CONTRACT_RATE_KPI}%` : ''}</div></div>
     <div class="agg-kpi"><div class="k-lbl">契約金額</div><div class="k-num sm">${yen(totalSales)}</div><div class="k-sub">平均 ${yen(avgSales)}／${contractCount}件</div></div>
   </div>`;
@@ -3073,27 +3073,6 @@ async function renderAgg(){
     + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map((c, i)=>`<td class="n${c.hl ? ' hl' : ''}">${withRate(c, c.f(s), visitsBy(s), totals[i])}</td>`).join('')}</tr>`).join('')
     + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${cols[i].den ? withRate(cols[i], t, totals[0], t) : t}</td>`).join('')}</tr></tbody></table></div>`
     + `<p class="agg-note">※（％）の分母：アポ＝その担当の接客数（アポ率）／それ以外（接客・実行・敷地調査・見積・建築申込・請負契約・確認申請・長期・ZEH・補助金）＝それぞれの全担当の合計（構成比）。</p>`;
-
-  // 担当者別 A：接客からの進み具合（その担当が接客したお客様が、その後どこまで進んだか。担当は問わない）
-  const reachStages = ['資金計画','敷地調査','プラン','建築申込','請負契約'];
-  const byStage = {}; reachStages.forEach(st=>{ byStage[st] = shinchokuAll.filter(p=>p.stage === st); });
-  const hostList = Array.from(new Set(raijou.map(r=>r.staff).filter(Boolean))).sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
-  const tot = { v:0 }; reachStages.forEach(st=>tot[st] = 0);
-  const cellR = (n, d) => n ? `${n}<small>（${fmtPct(n, d)}）</small>` : '<span class="z">·</span>';
-  html += `<h3 class="agg-sub">担当者別 接客からの進み具合 <span>接客したお客様が、その後どこまで進んだか（進んだ先の担当は問わない）</span></h3>`;
-  if(!hostList.length) html += `<p class="bd-empty">データがありません</p>`;
-  else{
-    html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>接客担当</th><th class="n">接客</th>${reachStages.map(st=>`<th class="n${st==='請負契約'?' hl':''}">→${st}</th>`).join('')}</tr></thead><tbody>`
-      + hostList.map(s=>{
-        const vs = raijou.filter(r=>r.staff === s); tot.v += vs.length;
-        return `<tr><td>${escapeHtml(s)}</td><td class="n">${vs.length}</td>` + reachStages.map(st=>{
-          const n = visitorsContracted(vs, byStage[st]).length; tot[st] += n;
-          return `<td class="n${st==='請負契約'?' hl':''}">${cellR(n, vs.length)}</td>`;
-        }).join('') + `</tr>`;
-      }).join('')
-      + `<tr class="total"><td>合計</td><td class="n">${tot.v}</td>${reachStages.map(st=>`<td class="n${st==='請負契約'?' hl':''}">${cellR(tot[st], tot.v)}</td>`).join('')}</tr></tbody></table></div>`
-      + `<p class="agg-note">※名前で照合した参考値です。契約は来場から数か月後になることが多いため、最近の期ほど低く出ます。</p>`;
-  }
 
   // 担当者別 B：契約担当の実績（件数・構成比・売上・個人目標）
   const staffSalesTargets = await getStaffSalesTargets();
