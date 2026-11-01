@@ -3049,24 +3049,30 @@ async function renderAgg(){
   const salesBy = s => contractRecords.filter(p=>p.staff === s).reduce((sum, p)=>sum + parseAmount(p.amount), 0);
   const cols = [
     { h:'接客', f: s=>visitsBy(s) },
-    { h:'資金計画<br><small>アポ</small>', f: s=>cnt('資金計画', s, 'appointmentStaff') },
-    { h:'資金計画<br><small>実行</small>', f: s=>cnt('資金計画', s, 'executionStaff') },
-    { h:'敷地調査', f: s=>cnt('敷地調査', s) },
-    { h:'プラン<br><small>アポ</small>', f: s=>cnt('プラン', s, 'appointmentStaff') },
-    { h:'プラン<br><small>実行</small>', f: s=>cnt('プラン', s, 'executionStaff') },
+    { h:'資金計画<br><small>アポ</small>', f: s=>cnt('資金計画', s, 'appointmentStaff'), den:'visit' },
+    { h:'資金計画<br><small>実行</small>', f: s=>cnt('資金計画', s, 'executionStaff'), den:'total' },
+    { h:'敷地調査', f: s=>cnt('敷地調査', s), den:'total' },
+    { h:'プラン<br><small>アポ</small>', f: s=>cnt('プラン', s, 'appointmentStaff'), den:'visit' },
+    { h:'プラン<br><small>実行</small>', f: s=>cnt('プラン', s, 'executionStaff'), den:'total' },
     { h:'見積', f: s=>cnt('見積', s) },
     { h:'建築申込', f: s=>cnt('建築申込', s) },
     { h:'請負契約', f: s=>cnt('請負契約', s), hl:true },
-    { h:'確認申請', f: s=>cnt('確認申請', s) },
-    { h:'長期・ZEH', f: s=>cnt('長期・ZEH', s) },
-    { h:'補助金', f: s=>cnt('補助金', s) },
+    { h:'確認申請', f: s=>cnt('確認申請', s), den:'total' },
+    { h:'長期・ZEH', f: s=>cnt('長期・ZEH', s), den:'total' },
+    { h:'補助金', f: s=>cnt('補助金', s), den:'total' },
   ];
   const totals = cols.map(c=>staffList.reduce((sum, s)=>sum + c.f(s), 0));
+  // 件数＋（率）。den:'visit'＝その担当の接客数が分母（アポ率）／den:'total'＝その列の全担当合計が分母（構成比）
+  const withRate = (c, n, visits, colTotal) => {
+    const d = c.den === 'visit' ? visits : c.den === 'total' ? colTotal : 0;
+    return (n && d) ? `${n}<small>（${fmtPct(n, d)}）</small>` : zero(n);
+  };
   html += `<h3 class="agg-sub">担当者別 件数</h3>`;
   if(!staffList.length) html += `<p class="bd-empty">データがありません</p>`;
   else html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>${cols.map(c=>`<th class="n${c.hl ? ' hl' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>`
-    + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map(c=>`<td class="n${c.hl ? ' hl' : ''}">${zero(c.f(s))}</td>`).join('')}</tr>`).join('')
-    + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${t}</td>`).join('')}</tr></tbody></table></div>`;
+    + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map((c, i)=>`<td class="n${c.hl ? ' hl' : ''}">${withRate(c, c.f(s), visitsBy(s), totals[i])}</td>`).join('')}</tr>`).join('')
+    + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${cols[i].den ? withRate(cols[i], t, totals[0], t) : t}</td>`).join('')}</tr></tbody></table></div>`
+    + `<p class="agg-note">※（％）の分母：アポ＝その担当の接客数（アポ率）／資金計画・プランの実行、敷地調査、確認申請、長期・ZEH、補助金＝それぞれの全担当の合計（構成比）。</p>`;
 
   // 担当者別 A：接客からの進み具合（その担当が接客したお客様が、その後どこまで進んだか。担当は問わない）
   const reachStages = ['資金計画','敷地調査','プラン','建築申込','請負契約'];
