@@ -2163,7 +2163,7 @@ async function renderPeriods(){
 
   // 表を組み立てる
   const isP = cmpMode === 'period';
-  const rate = (a, b) => b ? Math.round(a / b * 1000) / 10 : null;
+  const rate = (a, b) => ratePct(a, b);
   const yoy = (i, row) => { // 期ごと：前の期と比べる（率はポイント差）。今期は前期の同じ時期までと比べる
     if(!isP) return '';
     const isCur = cols[i].period === cur;
@@ -2174,16 +2174,16 @@ async function renderPeriods(){
     if(row.type === 'rate'){
       const a = rate(...row.vals[i]), b = rate(...prevV);
       if(a === null || b === null) return '';
-      const d = Math.round((a - b) * 10) / 10;
-      return `<span class="yoy ${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d}pt</span>`;
+      const d = Math.round((a - b) * 100) / 100;
+      return `<span class="yoy ${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d.toFixed(2)}pt</span>`;
     }
     const a = row.vals[i], b = prevV;
     if(!b) return a ? '<span class="yoy">新規</span>' : '';
-    const r = Math.round(a / b * 100);
-    return `<span class="yoy ${r>100?'up':r<100?'down':''}">${r}%</span>`;
+    const r = Math.round(a / b * 10000) / 100;
+    return `<span class="yoy ${r>100?'up':r<100?'down':''}">${r.toFixed(2)}%</span>`;
   };
   const fmt = (row, v) => {
-    if(row.type === 'rate'){ const r = rate(v[0], v[1]); return r === null ? '<span class="z">―</span>' : r + '%'; }
+    if(row.type === 'rate'){ const r = rate(v[0], v[1]); return r === null ? '<span class="z">―</span>' : r.toFixed(2) + '%'; }
     if(row.type === 'yen') return v ? '¥' + Math.round(v / 10000).toLocaleString('ja-JP') + '万' : '<span class="z">·</span>';
     return v ? v : '<span class="z">·</span>';
   };
@@ -2213,7 +2213,7 @@ async function renderPeriods(){
       const noStage = row.needStage && !hasStage.some(Boolean);
       const h1 = idxH1.length ? fmt(row, sumOf(row, idxH1)) : '<span class="z">―</span>';
       const h2 = idxH2.length ? fmt(row, sumOf(row, idxH2)) : '<span class="z">―</span>';
-      const pc = (row.pctBase && row.type === 'row') ? (row.pctBase ? (Math.round(row.total / row.pctBase * 1000) / 10) + '%' : '') : '';
+      const pc = (row.pctBase && row.type === 'row') ? (row.pctBase ? p2(row.total / row.pctBase * 100) + '%' : '') : '';
       return noStage ? '<td class="n half"><span class="z">―</span></td><td class="n half"><span class="z">―</span></td><td class="n"></td>'
         : `<td class="n half">${h1}</td><td class="n half">${h2}</td><td class="n pct">${pc}</td>`;
     })() : ''}</tr>`;
@@ -2768,7 +2768,10 @@ let aggFiscal = null; // 「期ごと」で選んでいる期（null＝今期）
 // 成約率＝その期間の請負契約件数 ÷ その期間の来場組数（月次・期ごとの管理でよく使う計算）
 // 参考として「その期間に来場した人のうち、のちに請負契約まで進んだ人」も名前で照合して出す
 const CONTRACT_RATE_KPI = null; // 目標の成約率（%）。決まったら数字を入れる（例：10）
-function rateText(n, d){ return d ? (Math.round(n / d * 1000) / 10) + '%' : '―'; }
+// ％の表示は小数点以下2桁にそろえる（例：23.00%）
+function p2(v){ return (Math.round(v * 100) / 100).toFixed(2); }
+function ratePct(n, d){ return d ? Math.round(n / d * 10000) / 100 : null; }
+function rateText(n, d){ return d ? p2(n / d * 100) + '%' : '―'; }
 function contractsOf(list){ return list.filter(p=>p.stage === '請負契約'); }
 function nameKey(n){ return normalizeName(n).replace(/[・,、()（）]/g,'').replace(/髙/g,'高').replace(/﨑/g,'崎'); }
 // 来場者のうち、請負契約の記録（名前が一致または一方が他方を含む、契約日が来場日以降）がある人
@@ -2855,8 +2858,8 @@ function countBy(items, field){
 function barsHtml(pairs, total){
   const max = Math.max(1, ...pairs.map(p=>p[1]));
   return pairs.map(([name,v])=>{
-    const pct = total ? Math.round(v/total*1000)/10 : 0;
-    return `<div class="barrow"><div class="name" style="width:88px;">${name}</div><div class="track"><div class="fill" style="width:${(v/max*100)}%"></div></div><div class="val" style="width:70px;">${v}件(${pct}%)</div></div>`;
+    const pct = p2(total ? v/total*100 : 0);
+    return `<div class="barrow"><div class="name" style="width:88px;">${name}</div><div class="track"><div class="fill" style="width:${(v/max*100)}%"></div></div><div class="val" style="width:96px;">${v}件(${pct}%)</div></div>`;
   }).join('');
 }
 
@@ -2885,7 +2888,7 @@ function pieChartSvg(pairs, total){
   let legend = '<div class="pie-legend">';
   pairs.forEach(([label,val], i)=>{
     if(val <= 0) return;
-    const pct = sum ? Math.round(val/sum*1000)/10 : 0;
+    const pct = p2(sum ? val/sum*100 : 0);
     const color = PIE_COLORS[i % PIE_COLORS.length];
     legend += `<div class="pie-legend-item"><span class="pie-swatch" style="background:${color}"></span>${label} ${val}件(${pct}%)</div>`;
   });
@@ -2925,11 +2928,11 @@ async function saveStaffSalesTargets(targets){
 }
 function pct(numerator, denominator){
   if(!denominator) return '';
-  return (Math.round(numerator/denominator*1000)/10) + '%';
+  return p2(numerator/denominator*100) + '%';
 }
 function pctNum(numerator, denominator){
   if(!denominator) return null;
-  return Math.round(numerator/denominator*1000)/10;
+  return Math.round(numerator/denominator*10000)/100;
 }
 function targetInputHtml(key, value){
   return `<input type="number" class="funnel-target-input" data-key="${key}" value="${value!=null && value!=='' ? value : ''}" style="width:64px; text-align:right; border:1px solid var(--line); border-radius:6px; padding:4px 6px;">`;
@@ -2939,7 +2942,7 @@ let currentPeriod = 'fiscal'; // 集計を開いたときは「期ごと（今�
 let aggCustomStart = '', aggCustomEnd = '';
 
 // ===== 集計：見やすい表のための部品 =====
-const fmtPct = (n, d) => d ? (Math.round(n / d * 1000) / 10) + '%' : '―';
+const fmtPct = (n, d) => d ? p2(n / d * 100) + '%' : '―';
 const yen = v => '¥' + Math.round(v || 0).toLocaleString('ja-JP');
 // 内訳表（項目｜バー｜件数｜割合）
 function breakdownCard(title, pairs, total, opt){
@@ -3100,7 +3103,7 @@ async function renderAgg(){
         <td class="n">${sales ? yen(sales) : '<span class="z">·</span>'}</td><td class="n">${con ? yen(sales / con) : '<span class="z">·</span>'}</td>
         <td class="n">${targetInputHtml('staffSales_' + s, target)}</td><td class="n">${target ? fmtPct(sales, target) : '<span class="z">·</span>'}</td></tr>`;
     }).join('') : `<tr><td colspan="7" style="color:var(--ink-faint);">この期間の請負契約はありません</td></tr>`)
-    + `<tr class="total"><td>合計</td><td class="n hl">${tCnt}</td><td class="n">${tCnt ? '100%' : ''}</td><td class="n">${yen(tSales)}</td><td class="n">${tCnt ? yen(tSales / tCnt) : ''}</td><td class="n">${tTarget ? yen(tTarget) : ''}</td><td class="n">${tTarget ? fmtPct(tSales, tTarget) : ''}</td></tr></tbody></table></div>`
+    + `<tr class="total"><td>合計</td><td class="n hl">${tCnt}</td><td class="n">${tCnt ? '100.00%' : ''}</td><td class="n">${yen(tSales)}</td><td class="n">${tCnt ? yen(tSales / tCnt) : ''}</td><td class="n">${tTarget ? yen(tTarget) : ''}</td><td class="n">${tTarget ? fmtPct(tSales, tTarget) : ''}</td></tr></tbody></table></div>`
     + `<p class="agg-note">※契約・売上は各請負契約の担当で集計。個人目標（円）は数字を入れると保存されます。</p>`;
   html += `</div></details>`;
 
@@ -3128,7 +3131,7 @@ async function renderAgg(){
     </tbody></table></div>`;
   html += `<h3 class="agg-sub">移行率</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${transitions.map(t=>`<th class="n">${t.label}</th>`).join('')}</tr></thead><tbody>
     <tr><td>目標</td>${transitions.map(t=>`<td class="n">${targetInputHtml(t.key, funnelTargets[t.key])}<small>%</small></td>`).join('')}</tr>
-    <tr><td>実績</td>${transitions.map(t=>`<td class="n"><b>${t.actual != null ? t.actual + '%' : '―'}</b></td>`).join('')}</tr>
+    <tr><td>実績</td>${transitions.map(t=>`<td class="n"><b>${t.actual != null ? t.actual.toFixed(2) + '%' : '―'}</b></td>`).join('')}</tr>
     <tr><td>達成率</td>${transitions.map(t=>`<td class="n">${(t.actual != null && funnelTargets[t.key]) ? pct(t.actual, funnelTargets[t.key]) : '<span class="z">·</span>'}</td>`).join('')}</tr>
     </tbody></table></div>`;
   html += `</div></details>`;
