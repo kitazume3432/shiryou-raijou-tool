@@ -3025,18 +3025,18 @@ async function renderAgg(){
     + breakdownCard('接客担当', countBy(raijou, 'staff'), raijou.length, { unit:'組' })
     + breakdownCard('土地', countBy(raijou, 'land'), raijou.length, { unit:'組' })
     + rankMatrixCard(raijou)
-    + breakdownCard('アンケート：興味を持った点', interestPairs, raijou.length, { unit:'組' })
+    + breakdownCard('アンケート：興味を持った点', interestPairs, raijou.filter(r=>(r.interests || []).length).length, { unit:'組' })
     + `</div>`;
   html += `</div></details>`;
 
   // ── 進捗・ステージ集計 ──
   html += `<details class="agg-group" open><summary class="agg-group-summary">📈 進捗・ステージ集計</summary><div class="agg-group-body">`;
   // ステージの流れ（来場比・前のステージからの移行率）
-  const flow = [['来場', raijou.length]].concat(STAGES.map(st=>[st, stageCounts[st]]));
+  const flow = [['来場', raijou.length]].concat(STAGES.filter(st=>!['確認申請','長期・ZEH','補助金'].includes(st)).map(st=>[st, stageCounts[st]]));
   const flowMax = Math.max(1, ...flow.map(f=>f[1]));
   html += `<h3 class="agg-sub">ステージの流れ</h3><div class="list-table-wrap"><table class="agg-table flow"><thead><tr><th>ステージ</th><th></th><th class="n">件数</th><th class="n">来場比</th><th class="n">前のステージから</th></tr></thead><tbody>`
     + flow.map(([st, v], i)=>`<tr${st === '請負契約' ? ' class="hl"' : ''}><td>${st}</td><td class="bd-bar"><span><i style="width:${Math.round(v / flowMax * 100)}%"></i></span></td><td class="n">${v}</td><td class="n">${i === 0 ? '' : fmtPct(v, raijou.length)}</td><td class="n">${i === 0 ? '' : fmtPct(v, flow[i - 1][1])}</td></tr>`).join('')
-    + `</tbody></table></div><p class="agg-note">※確認申請・長期ZEH・補助金は契約後の手続きのため、「前のステージから」は参考値です。</p>`;
+    + `</tbody></table></div>`;
 
   // 担当者（期間内に動きのある人だけ。元スタッフも表示）
   const staffSet = new Set();
@@ -3048,15 +3048,15 @@ async function renderAgg(){
   const cnt = (stage, s, field) => shinchoku.filter(p=>p.stage === stage && p[field || 'staff'] === s).length;
   const salesBy = s => contractRecords.filter(p=>p.staff === s).reduce((sum, p)=>sum + parseAmount(p.amount), 0);
   const cols = [
-    { h:'接客', f: s=>visitsBy(s) },
+    { h:'接客', f: s=>visitsBy(s), den:'total' },
     { h:'資金計画<br><small>アポ</small>', f: s=>cnt('資金計画', s, 'appointmentStaff'), den:'visit' },
     { h:'資金計画<br><small>実行</small>', f: s=>cnt('資金計画', s, 'executionStaff'), den:'total' },
     { h:'敷地調査', f: s=>cnt('敷地調査', s), den:'total' },
     { h:'プラン<br><small>アポ</small>', f: s=>cnt('プラン', s, 'appointmentStaff'), den:'visit' },
     { h:'プラン<br><small>実行</small>', f: s=>cnt('プラン', s, 'executionStaff'), den:'total' },
-    { h:'見積', f: s=>cnt('見積', s) },
-    { h:'建築申込', f: s=>cnt('建築申込', s) },
-    { h:'請負契約', f: s=>cnt('請負契約', s), hl:true },
+    { h:'見積', f: s=>cnt('見積', s), den:'total' },
+    { h:'建築申込', f: s=>cnt('建築申込', s), den:'total' },
+    { h:'請負契約', f: s=>cnt('請負契約', s), den:'total', hl:true },
     { h:'確認申請', f: s=>cnt('確認申請', s), den:'total' },
     { h:'長期・ZEH', f: s=>cnt('長期・ZEH', s), den:'total' },
     { h:'補助金', f: s=>cnt('補助金', s), den:'total' },
@@ -3072,7 +3072,7 @@ async function renderAgg(){
   else html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>${cols.map(c=>`<th class="n${c.hl ? ' hl' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>`
     + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map((c, i)=>`<td class="n${c.hl ? ' hl' : ''}">${withRate(c, c.f(s), visitsBy(s), totals[i])}</td>`).join('')}</tr>`).join('')
     + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${cols[i].den ? withRate(cols[i], t, totals[0], t) : t}</td>`).join('')}</tr></tbody></table></div>`
-    + `<p class="agg-note">※（％）の分母：アポ＝その担当の接客数（アポ率）／資金計画・プランの実行、敷地調査、確認申請、長期・ZEH、補助金＝それぞれの全担当の合計（構成比）。</p>`;
+    + `<p class="agg-note">※（％）の分母：アポ＝その担当の接客数（アポ率）／それ以外（接客・実行・敷地調査・見積・建築申込・請負契約・確認申請・長期・ZEH・補助金）＝それぞれの全担当の合計（構成比）。</p>`;
 
   // 担当者別 A：接客からの進み具合（その担当が接客したお客様が、その後どこまで進んだか。担当は問わない）
   const reachStages = ['資金計画','敷地調査','プラン','建築申込','請負契約'];
@@ -3115,11 +3115,11 @@ async function renderAgg(){
 
   // ── 目標達成率（ファネル） ──
   const funnelTargets = await getFunnelTargets();
-  const shiryouNameSet2 = new Set(shiryou.map(s=>normalizeName(s.name)));
-  const shiryouById2 = {}; shiryou.forEach(s=>shiryouById2[s.id] = s);
-  const raijouWithShiryou = raijou.filter(r=>shiryouNameSet2.has(normalizeName(r.name)) || (r.linkedShiryouId && shiryouById2[r.linkedShiryouId]));
+  const shiryouNameSet2 = new Set(shiryouAll.map(s=>nameKey(s.name)).filter(k=>k.length >= 2)); // 資料請求は期・エリア外・対応中を問わず全件で照合
+  const shiryouById2 = {}; shiryouAll.forEach(s=>shiryouById2[s.id] = s);
+  const raijouWithShiryou = raijou.filter(r=>shiryouNameSet2.has(nameKey(r.name)) || (r.linkedShiryouId && shiryouById2[r.linkedShiryouId]));
   const funnelStages = [
-    {key:'response', label:'反響', actual: inCount}, {key:'visit', label:'来場', actual: raijou.length},
+    {key:'response', label:'反響', actual: inCount + raijou.length}, {key:'visit', label:'来場', actual: raijou.length},
     {key:'funding', label:'資金計画', actual: stageCounts['資金計画']}, {key:'land', label:'敷地調査', actual: stageCounts['敷地調査']},
     {key:'plan', label:'プラン', actual: stageCounts['プラン']}, {key:'quote', label:'見積', actual: stageCounts['見積']},
     {key:'application', label:'建築申込', actual: stageCounts['建築申込']}, {key:'contract', label:'請負契約', actual: contractCount}
@@ -3129,11 +3129,11 @@ async function renderAgg(){
     {key:'fundingToLand', label:'資金→敷測', a:3, b:2}, {key:'landToPlan', label:'敷測→プラン', a:4, b:3}, {key:'planToContract', label:'プラン→契約', a:7, b:4}
   ].map(t=>Object.assign(t, { actual: pctNum(funnelStages[t.a].actual, funnelStages[t.b].actual) }));
   html += `<details class="agg-group" open><summary class="agg-group-summary">🎯 目標達成率（ファネル）</summary><div class="agg-group-body">`;
-  html += `<h3 class="agg-sub">件数 <span>エリア内の資料請求のみ</span></h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${funnelStages.map(s=>`<th class="n">${s.label}</th>`).join('')}</tr></thead><tbody>
+  html += `<h3 class="agg-sub">件数 <span>反響＝エリア内の資料請求＋来場</span></h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${funnelStages.map(s=>`<th class="n">${s.label}</th>`).join('')}</tr></thead><tbody>
     <tr><td>目標</td>${funnelStages.map(s=>`<td class="n">${targetInputHtml(s.key, funnelTargets[s.key])}</td>`).join('')}</tr>
     <tr><td>実績</td>${funnelStages.map(s=>`<td class="n"><b>${s.actual}</b></td>`).join('')}</tr>
     <tr><td>達成率</td>${funnelStages.map(s=>`<td class="n">${pct(s.actual, funnelTargets[s.key]) || '<span class="z">·</span>'}</td>`).join('')}</tr>
-    <tr><td>反響比</td>${funnelStages.map((s, i)=>`<td class="n">${i === 0 ? '' : (pct(s.actual, inCount) || '<span class="z">·</span>')}</td>`).join('')}</tr>
+    <tr><td>反響比</td>${funnelStages.map((s, i)=>`<td class="n">${i === 0 ? '' : (pct(s.actual, funnelStages[0].actual) || '<span class="z">·</span>')}</td>`).join('')}</tr>
     </tbody></table></div>`;
   html += `<h3 class="agg-sub">移行率</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${transitions.map(t=>`<th class="n">${t.label}</th>`).join('')}</tr></thead><tbody>
     <tr><td>目標</td>${transitions.map(t=>`<td class="n">${targetInputHtml(t.key, funnelTargets[t.key])}<small>%</small></td>`).join('')}</tr>
