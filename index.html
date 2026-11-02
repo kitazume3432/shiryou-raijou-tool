@@ -3130,7 +3130,7 @@ async function renderAgg(){
   html += `<h3 class="agg-sub">担当者別 契約担当の実績（半期別） <span>7月～12月／1月～6月は各記録の日付で分けています</span></h3>`
     + (targetKey
       ? `<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; font-size:13px;"><b>${targetLabel}売上目標</b>
-          <input type="number" class="funnel-target-input" data-key="salesTarget_${targetKey}" value="${salesTarget || ''}" placeholder="例 1010000000" style="width:170px; text-align:right; border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:13px;"> 円
+          <input type="text" inputmode="numeric" autocomplete="off" class="funnel-target-input" data-key="salesTarget_${targetKey}" value="${salesTarget ? salesTarget.toLocaleString('ja-JP') : ''}" placeholder="例 1,010,000,000" style="width:170px; text-align:right; border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:13px;"> 円
           <span style="color:var(--ink-faint);">${salesTarget ? `売上合計 ${yen(allSales)} ／ 目標に対して <b>${fmtPct(allSales, salesTarget)}</b>` : '目標（円）を入れると、「目標に対しての割合」が出ます'}</span></div>`
       : `<p class="agg-note">※全期間では売上目標を設定できません。「期ごと」を選ぶと、期ごとの売上目標を入力できます。</p>`)
     + `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>契約担当</th><th></th><th class="n">7月～12月</th><th class="n">1月～6月</th><th class="n">合計</th></tr></thead><tbody>`
@@ -3192,6 +3192,17 @@ async function renderAgg(){
 
   content.innerHTML = html;
 
+  content.querySelectorAll('.funnel-target-input[data-key^="salesTarget_"]').forEach(input=>{
+    input.addEventListener('input', ()=>{
+      const before = input.value.slice(0, input.selectionStart || 0).replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/\D/g, '').length; // カーソルより前の数字の数
+      const digits = input.value.replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/\D/g, '');
+      const formatted = digits ? Number(digits).toLocaleString('ja-JP') : '';
+      input.value = formatted;
+      let pos = 0, seen = 0;
+      while(pos < formatted.length && seen < before){ if(/\d/.test(formatted[pos])) seen++; pos++; }
+      try{ input.setSelectionRange(pos, pos); }catch(e){}
+    });
+  });
   content.querySelectorAll('.funnel-target-input').forEach(input=>{
     input.addEventListener('change', async ()=>{
       const v = input.value.trim();
@@ -3204,8 +3215,9 @@ async function renderAgg(){
       } else if(input.dataset.key.startsWith('salesTarget_')){
         const k = input.dataset.key.slice('salesTarget_'.length);
         const targets = await getSalesTargets();
-        if(v === '' || !(Number(v) > 0)) delete targets[k];
-        else targets[k] = Number(v);
+        const num = Number(v.replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/[,，、\s円¥￥]/g, ''));
+        if(v === '' || !(num > 0)) delete targets[k];
+        else targets[k] = num;
         await saveSalesTargets(targets);
       } else {
         const targets = await getFunnelTargets();
