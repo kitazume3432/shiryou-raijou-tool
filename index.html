@@ -2920,6 +2920,15 @@ async function getFunnelTargets(){
 async function saveFunnelTargets(targets){
   try{ await storageSet('funnelTargets', JSON.stringify(targets), true); }catch(e){ console.error(e); }
 }
+async function getSalesTargets(){
+  try{
+    const r = await storageGet('salesTargets', true);
+    return r ? JSON.parse(r.value) : {};
+  }catch(e){ return {}; }
+}
+async function saveSalesTargets(targets){
+  try{ await storageSet('salesTargets', JSON.stringify(targets), true); }catch(e){ console.error(e); }
+}
 async function getStaffSalesTargets(){
   try{
     const r = await storageGet('staffSalesTargets', true);
@@ -3077,22 +3086,57 @@ async function renderAgg(){
     + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl hl-strong' : ''}">${cols[i].den ? withRate(cols[i], t, totals[0], t) : t}</td>`).join('')}</tr></tbody></table></div>`
     + `<p class="agg-note">※（％）の分母：アポ＝その担当の接客数（アポ率）／それ以外（接客・実行・敷地調査・見積・建築申込・請負契約・確認申請・長期・ZEH・補助金）＝それぞれの全担当の合計（構成比）。</p>`;
 
-  // 担当者別 B：契約担当の実績（件数・構成比・売上・個人目標）
-  const staffSalesTargets = await getStaffSalesTargets();
+  // 担当者別 B：契約担当の実績（件数・構成比・売上・平均単価）
   const conStaff = Array.from(new Set(contractRecords.map(p=>p.staff).filter(Boolean)));
-  const bList = conStaff.concat(STAFF.filter(s=>!conStaff.includes(s) && staffSalesTargets[s])).sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
-  let tSales = 0, tTarget = 0, tCnt = 0;
+  const bList = conStaff.sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
+  let tSales = 0, tCnt = 0;
   html += `<h3 class="agg-sub">担当者別 契約担当の実績</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>契約担当</th>
-    <th class="n hl">契約</th><th class="n">構成比</th><th class="n">売上</th><th class="n">平均単価</th><th class="n">個人目標</th><th class="n">達成率</th></tr></thead><tbody>`
+    <th class="n hl">契約</th><th class="n">構成比</th><th class="n">売上</th><th class="n">平均単価</th></tr></thead><tbody>`
     + (bList.length ? bList.map(s=>{
-      const con = cnt('請負契約', s), sales = salesBy(s), target = staffSalesTargets[s];
-      tSales += sales; tCnt += con; if(target) tTarget += Number(target);
+      const con = cnt('請負契約', s), sales = salesBy(s);
+      tSales += sales; tCnt += con;
       return `<tr><td>${escapeHtml(s)}</td><td class="n hl"><b>${zero(con)}</b></td><td class="n">${con ? fmtPct(con, contractCount) : '<span class="z">·</span>'}</td>
-        <td class="n">${sales ? yen(sales) : '<span class="z">·</span>'}</td><td class="n">${con ? yen(sales / con) : '<span class="z">·</span>'}</td>
-        <td class="n">${targetInputHtml('staffSales_' + s, target)}</td><td class="n">${target ? fmtPct(sales, target) : '<span class="z">·</span>'}</td></tr>`;
-    }).join('') : `<tr><td colspan="7" style="color:var(--ink-faint);">この期間の請負契約はありません</td></tr>`)
-    + `<tr class="total"><td>合計</td><td class="n hl">${tCnt}</td><td class="n">${tCnt ? '100.00%' : ''}</td><td class="n">${yen(tSales)}</td><td class="n">${tCnt ? yen(tSales / tCnt) : ''}</td><td class="n">${tTarget ? yen(tTarget) : ''}</td><td class="n">${tTarget ? fmtPct(tSales, tTarget) : ''}</td></tr></tbody></table></div>`
-    + `<p class="agg-note">※契約・売上は各請負契約の担当で集計。個人目標（円）は数字を入れると保存されます。</p>`;
+        <td class="n">${sales ? yen(sales) : '<span class="z">·</span>'}</td><td class="n">${con ? yen(sales / con) : '<span class="z">·</span>'}</td></tr>`;
+    }).join('') : `<tr><td colspan="5" style="color:var(--ink-faint);">この期間の請負契約はありません</td></tr>`)
+    + `<tr class="total"><td>合計</td><td class="n hl">${tCnt}</td><td class="n">${tCnt ? '100.00%' : ''}</td><td class="n">${yen(tSales)}</td><td class="n">${tCnt ? yen(tSales / tCnt) : ''}</td></tr></tbody></table></div>`
+    + `<p class="agg-note">※契約・売上は各請負契約の担当で集計しています。</p>`;
+
+  // 担当者別 契約担当の実績（半期別）＋今期売上目標（Excel「第49期 CR222〜DC222」の集計）
+  const salesTargets = await getSalesTargets();
+  const targetKey = currentPeriod === 'all' ? null : String(currentPeriod === 'fiscal' ? (aggFiscal || currentPeriodNo()) : currentPeriodNo());
+  const salesTarget = targetKey ? (Number(salesTargets[targetKey]) || 0) : 0;
+  const halfOf = d => { const m = Number((d || '').slice(5, 7)); return (m >= 7 && m <= 12) ? 0 : (m >= 1 && m <= 6) ? 1 : -1; }; // 0＝7〜12月 / 1＝1〜6月
+  const pick = (stage, field, who, h) => shinchoku.filter(p=>p.stage === stage && (who === null || p[field] === who) && (h === 2 || halfOf(p.date) === h));
+  const halfMetrics = (who, h) => {
+    const cons = pick('請負契約', 'staff', who, h);
+    return { plan: pick('プラン', 'executionStaff', who, h).length, apply: pick('建築申込', 'staff', who, h).length,
+             contract: cons.length, sales: cons.reduce((sum, p)=>sum + parseAmount(p.amount), 0) };
+  };
+  const rateCell = (n, d) => d ? fmtPct(n, d) : '<span class="z">―</span>';
+  const hRows = [
+    ['プラン数', m=>zero(m.plan)], ['申込数', m=>zero(m.apply)], ['申込率', m=>rateCell(m.apply, m.plan)],
+    ['契約数', m=>zero(m.contract)], ['契約率', m=>rateCell(m.contract, m.plan)],
+    ['担当別売上', m=>m.sales ? yen(m.sales) : '<span class="z">·</span>'],
+    ['目標に対しての割合', m=>salesTarget ? fmtPct(m.sales, salesTarget) : '<span class="z">―</span>']
+  ];
+  const hStaff = Array.from(new Set(shinchoku.filter(p=>['プラン', '建築申込', '請負契約'].includes(p.stage)).map(p=>p.stage === 'プラン' ? p.executionStaff : p.staff).filter(Boolean)))
+    .sort((a,b)=>order(a) - order(b) || a.localeCompare(b, 'ja'));
+  const hBlock = (label, who) => {
+    const ms = [0, 1, 2].map(h=>halfMetrics(who, h));
+    return hRows.map(([name, f], i)=>`<tr${i === 0 ? ' style="border-top:2px solid var(--wood-200);"' : ''}>${i === 0 ? `<td rowspan="${hRows.length}" style="vertical-align:top;">${escapeHtml(label)}</td>` : ''}<td style="font-weight:400;">${name}</td>${ms.map((m, k)=>`<td class="n${i >= 5 ? ' hl' : ''}"${k === 2 ? ' style="font-weight:700;"' : ''}>${f(m)}</td>`).join('')}</tr>`).join('');
+  };
+  const allSales = halfMetrics(null, 2).sales;
+  const targetLabel = !targetKey ? '' : (currentPeriod === 'fiscal' ? `第${targetKey}期` : `今期（第${targetKey}期）`);
+  html += `<h3 class="agg-sub">担当者別 契約担当の実績（半期別） <span>7月～12月／1月～6月は各記録の日付で分けています</span></h3>`
+    + (targetKey
+      ? `<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; font-size:13px;"><b>${targetLabel}売上目標</b>
+          <input type="number" class="funnel-target-input" data-key="salesTarget_${targetKey}" value="${salesTarget || ''}" placeholder="例 1010000000" style="width:170px; text-align:right; border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:13px;"> 円
+          <span style="color:var(--ink-faint);">${salesTarget ? `売上合計 ${yen(allSales)} ／ 目標に対して <b>${fmtPct(allSales, salesTarget)}</b>` : '目標（円）を入れると、「目標に対しての割合」が出ます'}</span></div>`
+      : `<p class="agg-note">※全期間では売上目標を設定できません。「期ごと」を選ぶと、期ごとの売上目標を入力できます。</p>`)
+    + `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>契約担当</th><th></th><th class="n">7月～12月</th><th class="n">1月～6月</th><th class="n">合計</th></tr></thead><tbody>`
+    + (hStaff.length ? hStaff.map(who=>hBlock(who, who)).join('') + hBlock('合計（全担当）', null) : `<tr><td colspan="5" style="color:var(--ink-faint);">この期間のプラン・申込・請負契約はありません</td></tr>`)
+    + `</tbody></table></div>`
+    + `<p class="agg-note">※プラン数＝プランの実行担当、申込数＝建築申込の担当、契約数・売上＝請負契約の担当で数えます。申込率＝申込数÷プラン数、契約率＝契約数÷プラン数、目標に対しての割合＝担当別売上÷売上目標。</p>`;
   html += `</div></details>`;
 
   // ── 目標達成率（ファネル） ──
@@ -3157,6 +3201,12 @@ async function renderAgg(){
         if(v === '') delete targets[staffName];
         else targets[staffName] = Number(v);
         await saveStaffSalesTargets(targets);
+      } else if(input.dataset.key.startsWith('salesTarget_')){
+        const k = input.dataset.key.slice('salesTarget_'.length);
+        const targets = await getSalesTargets();
+        if(v === '' || !(Number(v) > 0)) delete targets[k];
+        else targets[k] = Number(v);
+        await saveSalesTargets(targets);
       } else {
         const targets = await getFunnelTargets();
         if(v === '') delete targets[input.dataset.key];
