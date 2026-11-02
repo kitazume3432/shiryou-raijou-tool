@@ -281,6 +281,9 @@
   .agg-table .n{text-align:right;}
   .agg-table tr.total td{font-weight:700; border-top:1px solid var(--wood-200); background:var(--wood-50);}
   .agg-table .hl{background:rgba(173,138,92,.08);}
+.agg-table th.hl-strong{background:rgba(173,138,92,.55); color:#232323;}
+.agg-table td.hl-strong{background:rgba(173,138,92,.30); font-weight:700;}
+.agg-table tr.total td.hl-strong{background:rgba(173,138,92,.50);}
   .agg-table tr.hl td{font-weight:700;}
   .agg-table.flow .bd-bar{width:34%;}
   .agg-table.matrix td:first-child{font-weight:600;}
@@ -3069,9 +3072,9 @@ async function renderAgg(){
   };
   html += `<h3 class="agg-sub">担当者別 件数</h3>`;
   if(!staffList.length) html += `<p class="bd-empty">データがありません</p>`;
-  else html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>${cols.map(c=>`<th class="n${c.hl ? ' hl' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>`
-    + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map((c, i)=>`<td class="n${c.hl ? ' hl' : ''}">${withRate(c, c.f(s), visitsBy(s), totals[i])}</td>`).join('')}</tr>`).join('')
-    + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl' : ''}">${cols[i].den ? withRate(cols[i], t, totals[0], t) : t}</td>`).join('')}</tr></tbody></table></div>`
+  else html += `<div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th>担当</th>${cols.map(c=>`<th class="n${c.hl ? ' hl hl-strong' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>`
+    + staffList.map(s=>`<tr><td>${escapeHtml(s)}</td>${cols.map((c, i)=>`<td class="n${c.hl ? ' hl hl-strong' : ''}">${withRate(c, c.f(s), visitsBy(s), totals[i])}</td>`).join('')}</tr>`).join('')
+    + `<tr class="total"><td>合計</td>${totals.map((t, i)=>`<td class="n${cols[i].hl ? ' hl hl-strong' : ''}">${cols[i].den ? withRate(cols[i], t, totals[0], t) : t}</td>`).join('')}</tr></tbody></table></div>`
     + `<p class="agg-note">※（％）の分母：アポ＝その担当の接客数（アポ率）／それ以外（接客・実行・敷地調査・見積・建築申込・請負契約・確認申請・長期・ZEH・補助金）＝それぞれの全担当の合計（構成比）。</p>`;
 
   // 担当者別 B：契約担当の実績（件数・構成比・売上・個人目標）
@@ -3106,7 +3109,12 @@ async function renderAgg(){
   const transitions = [
     {key:'responseToVisit', label:'反響→来場', a:1, b:0}, {key:'visitToFunding', label:'来場→資金', a:2, b:1},
     {key:'fundingToLand', label:'資金→敷測', a:3, b:2}, {key:'landToPlan', label:'敷測→プラン', a:4, b:3}, {key:'planToContract', label:'プラン→契約', a:7, b:4}
-  ].map(t=>Object.assign(t, { actual: pctNum(funnelStages[t.a].actual, funnelStages[t.b].actual) }));
+  ].map(t=>{
+    // 移行率の目標は、上の「件数」の目標から自動計算（例：来場→資金＝資金計画の目標 ÷ 来場の目標）
+    const num = Number(funnelTargets[funnelStages[t.a].key]), den = Number(funnelTargets[funnelStages[t.b].key]);
+    const target = (num > 0 && den > 0) ? Math.round(num / den * 10000) / 100 : null;
+    return Object.assign(t, { actual: pctNum(funnelStages[t.a].actual, funnelStages[t.b].actual), target });
+  });
   html += `<details class="agg-group" open><summary class="agg-group-summary">🎯 目標達成率（ファネル）</summary><div class="agg-group-body">`;
   html += `<h3 class="agg-sub">件数 <span>反響＝エリア内の資料請求＋来場</span></h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${funnelStages.map(s=>`<th class="n">${s.label}</th>`).join('')}</tr></thead><tbody>
     <tr><td>目標</td>${funnelStages.map(s=>`<td class="n">${targetInputHtml(s.key, funnelTargets[s.key])}</td>`).join('')}</tr>
@@ -3114,10 +3122,10 @@ async function renderAgg(){
     <tr><td>達成率</td>${funnelStages.map(s=>`<td class="n">${pct(s.actual, funnelTargets[s.key]) || '<span class="z">·</span>'}</td>`).join('')}</tr>
     <tr><td>反響比</td>${funnelStages.map((s, i)=>`<td class="n">${i === 0 ? '' : (pct(s.actual, funnelStages[0].actual) || '<span class="z">·</span>')}</td>`).join('')}</tr>
     </tbody></table></div>`;
-  html += `<h3 class="agg-sub">移行率</h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${transitions.map(t=>`<th class="n">${t.label}</th>`).join('')}</tr></thead><tbody>
-    <tr><td>目標</td>${transitions.map(t=>`<td class="n">${targetInputHtml(t.key, funnelTargets[t.key])}<small>%</small></td>`).join('')}</tr>
+  html += `<h3 class="agg-sub">移行率 <span>目標は上の「件数」の目標から自動計算（例：来場の目標 ÷ 反響の目標）</span></h3><div class="list-table-wrap"><table class="agg-table matrix"><thead><tr><th></th>${transitions.map(t=>`<th class="n">${t.label}</th>`).join('')}</tr></thead><tbody>
+    <tr><td>目標</td>${transitions.map(t=>`<td class="n">${t.target != null ? '<b>' + t.target.toFixed(2) + '%</b>' : '<span class="z">·</span>'}</td>`).join('')}</tr>
     <tr><td>実績</td>${transitions.map(t=>`<td class="n"><b>${t.actual != null ? t.actual.toFixed(2) + '%' : '―'}</b></td>`).join('')}</tr>
-    <tr><td>達成率</td>${transitions.map(t=>`<td class="n">${(t.actual != null && funnelTargets[t.key]) ? pct(t.actual, funnelTargets[t.key]) : '<span class="z">·</span>'}</td>`).join('')}</tr>
+    <tr><td>達成率</td>${transitions.map(t=>`<td class="n">${(t.actual != null && t.target) ? pct(t.actual, t.target) : '<span class="z">·</span>'}</td>`).join('')}</tr>
     </tbody></table></div>`;
   html += `</div></details>`;
 
