@@ -682,7 +682,6 @@
     </div>
 
     <div id="visit-tab-reservation" class="hidden">
-      <div id="rv-input-area" class="hidden"><!-- 予約の入力欄は使わない（自動取込・一覧のみ）。JSが参照するため部品は残して非表示 -->
       <div class="section-title">CSVから一括インポート</div>
       <div class="listitem">
         <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">SUUMOなどから書き出したCSV(氏名・電話番号・依頼番号・反響日などを含むもの)を選ぶと、自動で読み込みます。</p>
@@ -803,7 +802,6 @@
         </div>
         <button type="button" id="form-reservation-submit-btn" class="btn-primary">予約を保存</button>
       </form>
-      </div>
       <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
         <span>予約一覧（来場予定日の近い順）</span>
         <button type="button" id="reservation-pdf-btn" class="btn-pdf">🖨️ PDFで保存</button>
@@ -1118,6 +1116,22 @@
       </div>
       <button type="button" id="fix-media-btn" class="btn-ghost">件数を確認して直す</button>
       <div id="fix-media-result" style="font-size:13px; margin-top:10px; color:var(--ink-soft);"></div>
+    </div>
+
+    <div class="section-title">HP数値解析フォーム（毎月の提出）</div>
+    <div class="listitem">
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">選んだ月の「新規名簿獲得数・うち資料請求数・新規来場者数」を数えます。<b>「フォーム用にコピー」</b>を押してからHP数値解析フォームを開き、ブックマーク「HP解析入力」を押すと、月・会社名・担当者とこの3つの数字が入ります。GA4取得URLを設定すると、セッション数・mokkotsu.com経由も一緒に入ります（イベント回数だけフォームで入力）。</p>
+      <div class="period-switch" style="margin:0 0 8px;">
+        <label for="hp-ga-url">GA4取得URL</label>
+        <input type="text" id="hp-ga-url" placeholder="https://script.google.com/macros/s/…/exec?key=…" style="flex:1; min-width:240px;">
+      </div>
+      <div class="period-switch" style="margin:0 0 8px;">
+        <label for="hp-month">対象の月</label>
+        <input type="month" id="hp-month">
+      </div>
+      <div id="hp-counts" style="font-size:13.5px; margin:8px 0 10px;"></div>
+      <button type="button" id="hp-copy-btn" class="btn-primary">フォーム用にコピー</button>
+      <div id="hp-copy-result" style="font-size:13px; margin-top:8px; color:var(--ink-soft);"></div>
     </div>
 
     <div class="section-title">データのバックアップ（書き出し）</div>
@@ -1730,6 +1744,55 @@ document.getElementById('fix-media-btn').addEventListener('click', async ()=>{
   try{ await saveShiryouBatch(list.map(r=>Object.assign({}, r, { media:'ｽｰﾓﾈｯﾄ', mediaOther:'' }))); res.textContent = `${list.length}件を「ｽｰﾓﾈｯﾄ」に直しました（${detail}）。`; }
   catch(e){ res.textContent = '保存できませんでした：' + (e.message||e); }
 });
+
+// ===== HP数値解析フォーム（毎月の提出）=====
+// 名簿獲得数 = 資料請求 + 来場（これまでの提出値と同じ数え方）。削除客・エリア外も、その月に獲得した名簿として数える
+let hpCountsCache = null;
+function hpPrevMonth(){ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+async function hpCalc(){
+  const box = document.getElementById('hp-counts');
+  const ym = document.getElementById('hp-month').value;
+  if(!ym){ box.textContent = '月を選んでください。'; hpCountsCache = null; return; }
+  box.textContent = '数えています…';
+  try{
+    const [raijou, shiryou] = await Promise.all([getAll('raijou'), getAll('shiryou')]);
+    const sh = shiryou.filter(r=>ymOf(r.date) === ym), ra = raijou.filter(r=>ymOf(r.date) === ym);
+    const note = list => { const o = list.filter(r=>r.outofarea).length, d = list.filter(isDeletedRec).length;
+      const t = [o ? 'エリア外 ' + o : '', d ? '削除客 ' + d : ''].filter(Boolean).join('・'); return t ? '（うち' + t + '）' : ''; };
+    const c = { ym, label: Number(ym.slice(0,4)) + '年' + Number(ym.slice(5,7)) + '月', shiryou: sh.length, raijou: ra.length, meibo: sh.length + ra.length, session: '', mokkotsu: '' };
+    let ga = '';
+    const gaUrl = (document.getElementById('hp-ga-url').value || '').trim();
+    if(gaUrl){
+      try{
+        const r = await fetch(gaUrl + (gaUrl.includes('?') ? '&' : '?') + 'ym=' + ym);
+        const j = await r.json();
+        if(j.error) throw new Error(j.error);
+        c.session = String(j.session); c.mokkotsu = String(j.mokkotsu);
+        ga = ` ／ セッション数 <b>${escapeHtml(c.session)}</b> ／ mokkotsu.com経由 <b>${escapeHtml(c.mokkotsu)}</b>`;
+      }catch(e){ ga = `<br><span style="color:#b04a3a;">GA4の数字を取得できませんでした（${escapeHtml(e.message || e)}）。セッション数・mokkotsu.com経由はフォームで入力してください。</span>`; }
+    }
+    if(document.getElementById('hp-month').value !== ym) return; // 途中で月を変えたとき
+    hpCountsCache = c;
+    box.innerHTML = `<b>${c.label}</b>：新規名簿獲得数 <b>${c.meibo}</b> ／ うち資料請求数 <b>${sh.length}</b>${escapeHtml(note(sh))} ／ 新規来場者数 <b>${ra.length}</b>${escapeHtml(note(ra))}${ga}`;
+  }catch(e){ hpCountsCache = null; box.textContent = '数えられませんでした：' + (e.message || e); }
+}
+(function(){
+  const m = document.getElementById('hp-month');
+  m.value = hpPrevMonth();
+  const gu = document.getElementById('hp-ga-url');
+  try{ gu.value = localStorage.getItem('hp-ga-url') || ''; }catch(e){}
+  gu.addEventListener('change', ()=>{ try{ localStorage.setItem('hp-ga-url', gu.value.trim()); }catch(e){} hpCalc(); });
+  m.addEventListener('change', hpCalc);
+  document.querySelector('[data-view="backup"], #nav-backup')?.addEventListener('click', ()=>setTimeout(hpCalc, 0));
+  document.getElementById('hp-copy-btn').addEventListener('click', async ()=>{
+    const res = document.getElementById('hp-copy-result');
+    if(!hpCountsCache || hpCountsCache.ym !== m.value) await hpCalc();
+    if(!hpCountsCache){ res.textContent = 'コピーできませんでした。'; return; }
+    const c = hpCountsCache, text = ['HPKAISEKI', c.label, c.meibo, c.shiryou, c.raijou, c.session, c.mokkotsu].join('|');
+    try{ await navigator.clipboard.writeText(text); res.textContent = `コピーしました（${c.label}：名簿 ${c.meibo}・資料請求 ${c.shiryou}・来場 ${c.raijou}${c.session !== '' ? '・セッション ' + c.session + '・mokkotsu ' + c.mokkotsu : ''}）。フォームを開いて「HP解析入力」を押してください。`; }
+    catch(e){ res.innerHTML = 'コピーできませんでした。下の文字を選んでコピーしてください：<br><code>' + escapeHtml(text) + '</code>'; }
+  });
+})();
 
 // ===== ホームの一覧：月ごとの区切り・通し番号・来場KPI =====
 const VISIT_KPI_PER_MONTH = 15; // 当社KPI：来場 月15組
@@ -4741,6 +4804,7 @@ async function renderReservationList(){
     delBtn.onclick = async ()=>{ if(await customConfirm(it.name+'の予約を削除しますか')){ await deleteRecord('reservation', it.id); renderReservationList(); } };
     const editBtn = document.createElement('button'); editBtn.className='btn-ghost'; editBtn.style.marginRight='6px'; editBtn.textContent='編集';
     editBtn.onclick = ()=>editReservation(it.id);
+    div.appendChild(editBtn);
     div.appendChild(doneBtn);
     div.appendChild(delBtn);
     listEl.appendChild(div);
