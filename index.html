@@ -1118,6 +1118,18 @@
       <div id="fix-media-result" style="font-size:13px; margin-top:10px; color:var(--ink-soft);"></div>
     </div>
 
+    <div class="section-title">HP数値解析フォーム（毎月の提出）</div>
+    <div class="listitem">
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">選んだ月の「新規名簿獲得数・うち資料請求数・新規来場者数」を数えます。<b>「フォーム用にコピー」</b>を押してからHP数値解析フォームを開き、ブックマーク「HP解析入力」を押すと、月・会社名・担当者とこの3つの数字が入ります。セッション数・mokkotsu.com経由・イベント回数はフォームで入力してください。</p>
+      <div class="period-switch" style="margin:0 0 8px;">
+        <label for="hp-month">対象の月</label>
+        <input type="month" id="hp-month">
+      </div>
+      <div id="hp-counts" style="font-size:13.5px; margin:8px 0 10px;"></div>
+      <button type="button" id="hp-copy-btn" class="btn-primary">フォーム用にコピー</button>
+      <div id="hp-copy-result" style="font-size:13px; margin-top:8px; color:var(--ink-soft);"></div>
+    </div>
+
     <div class="section-title">データのバックアップ（書き出し）</div>
     <div class="listitem">
       <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">
@@ -1728,6 +1740,39 @@ document.getElementById('fix-media-btn').addEventListener('click', async ()=>{
   try{ await saveShiryouBatch(list.map(r=>Object.assign({}, r, { media:'ｽｰﾓﾈｯﾄ', mediaOther:'' }))); res.textContent = `${list.length}件を「ｽｰﾓﾈｯﾄ」に直しました（${detail}）。`; }
   catch(e){ res.textContent = '保存できませんでした：' + (e.message||e); }
 });
+
+// ===== HP数値解析フォーム（毎月の提出）=====
+// 名簿獲得数 = 資料請求 + 来場（これまでの提出値と同じ数え方）。削除客・エリア外も、その月に獲得した名簿として数える
+let hpCountsCache = null;
+function hpPrevMonth(){ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+async function hpCalc(){
+  const box = document.getElementById('hp-counts');
+  const ym = document.getElementById('hp-month').value;
+  if(!ym){ box.textContent = '月を選んでください。'; hpCountsCache = null; return; }
+  box.textContent = '数えています…';
+  try{
+    const [raijou, shiryou] = await Promise.all([getAll('raijou'), getAll('shiryou')]);
+    const sh = shiryou.filter(r=>ymOf(r.date) === ym), ra = raijou.filter(r=>ymOf(r.date) === ym);
+    const note = list => { const o = list.filter(r=>r.outofarea).length, d = list.filter(isDeletedRec).length;
+      const t = [o ? 'エリア外 ' + o : '', d ? '削除客 ' + d : ''].filter(Boolean).join('・'); return t ? '（うち' + t + '）' : ''; };
+    hpCountsCache = { ym, label: Number(ym.slice(0,4)) + '年' + Number(ym.slice(5,7)) + '月', shiryou: sh.length, raijou: ra.length, meibo: sh.length + ra.length };
+    box.innerHTML = `<b>${hpCountsCache.label}</b>：新規名簿獲得数 <b>${hpCountsCache.meibo}</b> ／ うち資料請求数 <b>${sh.length}</b>${escapeHtml(note(sh))} ／ 新規来場者数 <b>${ra.length}</b>${escapeHtml(note(ra))}`;
+  }catch(e){ hpCountsCache = null; box.textContent = '数えられませんでした：' + (e.message || e); }
+}
+(function(){
+  const m = document.getElementById('hp-month');
+  m.value = hpPrevMonth();
+  m.addEventListener('change', hpCalc);
+  document.querySelector('[data-view="backup"], #nav-backup')?.addEventListener('click', ()=>setTimeout(hpCalc, 0));
+  document.getElementById('hp-copy-btn').addEventListener('click', async ()=>{
+    const res = document.getElementById('hp-copy-result');
+    if(!hpCountsCache || hpCountsCache.ym !== m.value) await hpCalc();
+    if(!hpCountsCache){ res.textContent = 'コピーできませんでした。'; return; }
+    const c = hpCountsCache, text = ['HPKAISEKI', c.label, c.meibo, c.shiryou, c.raijou].join('|');
+    try{ await navigator.clipboard.writeText(text); res.textContent = `コピーしました（${c.label}：名簿 ${c.meibo}・資料請求 ${c.shiryou}・来場 ${c.raijou}）。フォームを開いて「HP解析入力」を押してください。`; }
+    catch(e){ res.innerHTML = 'コピーできませんでした。下の文字を選んでコピーしてください：<br><code>' + escapeHtml(text) + '</code>'; }
+  });
+})();
 
 // ===== ホームの一覧：月ごとの区切り・通し番号・来場KPI =====
 const VISIT_KPI_PER_MONTH = 15; // 当社KPI：来場 月15組
