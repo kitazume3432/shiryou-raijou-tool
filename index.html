@@ -2267,14 +2267,20 @@ async function renderNotices(){
   // SUUMOのお知らせ：同じ日（翌日まで）にSUUMOの資料請求が登録されていれば、対応済みとして自動で隠す
   const suumoRecs = (await getAll('shiryou').catch(()=>[])).filter(r=>r.source === 'ｽｰﾓ注文住宅' || r.source === 'SUUMO注文住宅');
   const used = new Set();
+  const hitOf = new Map();   // 通知 → 対応づけた資料請求
   const nextDay = d => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + 1); return formatDateLocal(x); };
   items.sort((a,b)=>((a.date||'') + (a.time||'')).localeCompare((b.date||'') + (b.time||'')));
-  const pending = items.filter(n=>{
-    const hit = suumoRecs.find(r=>!used.has(r.id) && (r.date === n.date || r.date === nextDay(n.date)));
-    if(hit){ used.add(hit.id); return false; }
-    return true;
+  // 先に「同じ日」の資料請求と対応づけ、残った通知だけを「翌日」の資料請求と対応づける。
+  // （翌日分を先に使ってしまうと、翌日の通知が相手を失って「未登録」のまま残るため）
+  const pairUp = dateOf => items.forEach(n=>{
+    if(hitOf.has(n) || !n.date) return;
+    const hit = suumoRecs.find(r=>!used.has(r.id) && r.date === dateOf(n));
+    if(hit){ used.add(hit.id); hitOf.set(n, hit); }
   });
-  const matched = items.filter(n=>!pending.includes(n));
+  pairUp(n=>n.date);
+  pairUp(n=>nextDay(n.date));
+  const pending = items.filter(n=>!hitOf.has(n));
+  const matched = items.filter(n=>hitOf.has(n));
   const matchedHtml = matched.length ? `<p class="notice-matched">SUUMOの通知のうち ${matched.length}件（${matched.map(n=>escapeHtml((n.date||'').slice(5).replace('-','/') + (n.time ? ' ' + n.time : ''))).join('、')}）は、同じ日か翌日にSUUMOの資料請求が登録されているため、対応済みとしています。</p>` : '';
   if(!pending.length){ box.innerHTML = html + matchedHtml; bindNoticeButtons(box); return; }
   box.innerHTML = html + matchedHtml + `<div class="notice-box warn">
